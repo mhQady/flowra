@@ -1,9 +1,8 @@
 {
-    "name": "mhqad/flowra",
+    "name": "mhqady/flowra",
     "description": "A powerful and flexible workflow management package for Laravel that stores and manages workflows entirely in your database. It enables you to define states, transitions, and actions dynamically without hardcoding logic, giving you full control over business processes.",
     "type": "library",
     "license": "MIT",
-    "version": "1.0.0",
     "require": {
         "php": "^8.4",
         "illuminate/support": "^12.24"
@@ -15,7 +14,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Mhqad\\Laraflow\\": "src/"
+            "mhQady\\Laraflow\\": "src/"
         }
     },
     "authors": [
