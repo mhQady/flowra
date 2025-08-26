@@ -2,7 +2,7 @@
 
 namespace Flowra\Console;
 
-//use App\Models\Workflow;
+// use App\Models\Workflow;
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Collection;
@@ -31,34 +31,33 @@ class GenerateWorkflow extends Command
 
     public function handle()
     {
-        return 'Installing Flowra';
-//        $this->line('----------------------------------------------------------------⤵⤵ ');
-//        $workflow = $this->collectWorkflowData();
-//        $this->line('----------------------------------------------------------------|| ');
-//        $states = $this->collectStates();
-//        $this->line('----------------------------------------------------------------|| ');
-//        $states = $this->assignParentStates($states);
-//        $this->line('----------------------------------------------------------------|| ');
-//        $transitions = $this->collectTransitions($states);
-//        $this->line('----------------------------------------------------------------|| ');
-//
-//        if (
-//            !confirm(
-//                label: "Are you sure you want to create workflow with name {$workflow['name']} and type {$workflow['model_type']}?",
-//                yes: 'I Do 😁',
-//                no: 'I Don\'t 😟',
-//                hint: 'The terms must be accepted to continue.'
-//            )
-//        ) {
-//            return;
-//        }
-//
-//        spin(
-//            message: 'Creating Workflow. Please wait... 🤔',
-//            callback: fn () => $this->generateWorkflowFile($workflow, $states, $transitions)
-//        );
-//
-//        $this->line('----------------------------------------------------------------⤴⤴ ');
+        $this->line('<comment> ⚙️ ----------------------------------------------------------------⤵⤵ </comment>');
+               $workflow = $this->collectWorkflowData();
+               $this->line('<comment> ⚙️ ----------------------------------------------------------------|| </comment>');
+        //        $states = $this->collectStates();
+        //        $this->line('----------------------------------------------------------------|| ');
+        //        $states = $this->assignParentStates($states);
+        //        $this->line('----------------------------------------------------------------|| ');
+        //        $transitions = $this->collectTransitions($states);
+        //        $this->line('----------------------------------------------------------------|| ');
+        //
+        //        if (
+        //            !confirm(
+        //                label: "Are you sure you want to create workflow with name {$workflow['name']} and type {$workflow['model_type']}?",
+        //                yes: 'I Do 😁',
+        //                no: 'I Don\'t 😟',
+        //                hint: 'The terms must be accepted to continue.'
+        //            )
+        //        ) {
+        //            return;
+        //        }
+        //
+        //        spin(
+        //            message: 'Creating Workflow. Please wait... 🤔',
+        //            callback: fn () => $this->generateWorkflowFile($workflow, $states, $transitions)
+        //        );
+        //
+        //        $this->line('----------------------------------------------------------------⤴⤴ ');
     }
 
     private function collectWorkflowData(): Collection
@@ -140,7 +139,7 @@ class GenerateWorkflow extends Command
 
         return collect(explode(',', $states))
             // Remove empty states
-            ->filter(fn ($state) => !empty($state))
+            ->filter(fn ($state) => ! empty($state))
             // Make state name standard & collect labels
             ->map(function ($state) {
 
@@ -162,7 +161,7 @@ class GenerateWorkflow extends Command
 
     private function assignParentStates(Collection $states): Collection
     {
-        if (!confirm(label: 'Do you want to assign parent states?', yes: 'I Do 😁', no: 'I Don\'t 😟')) {
+        if (! confirm(label: 'Do you want to assign parent states?', yes: 'I Do 😁', no: 'I Don\'t 😟')) {
             return $states;
         }
 
@@ -180,7 +179,7 @@ class GenerateWorkflow extends Command
             required: 'Parent state is required'
         );
 
-        $childrenStates = multiselect('select children states:', $states->map(fn ($state) => $state['name'])->filter(fn ($name) => !in_array($name, [$parentState, Workflow::INIT_STATE]))->values(), required: 'Children states are required');
+        $childrenStates = multiselect('select children states:', $states->map(fn ($state) => $state['name'])->filter(fn ($name) => ! in_array($name, [$parentState, Workflow::INIT_STATE]))->values(), required: 'Children states are required');
 
         return $states->map(function ($state) use ($parentState, $childrenStates) {
             if (in_array($state['name'], $childrenStates)) {
@@ -209,7 +208,7 @@ class GenerateWorkflow extends Command
 
             // Break when all possible transitions are created
             if (
-                $transitions->count() === calcPossibleTransitions($statesCount) || !confirm(
+                $transitions->count() === calcPossibleTransitions($statesCount) || ! confirm(
                     label: 'Do you wanna add another transition?',
                     default: true,
                     yes: 'Yes',
@@ -289,7 +288,7 @@ class GenerateWorkflow extends Command
                         $val,
                         $transitions
                     )->isEmpty()) {
-                        true    => "You can't select {$val} as from state because all possible transitions that uses it as state are already created.",
+                        true => "You can't select {$val} as from state because all possible transitions that uses it as state are already created.",
                         default => null
                     },
                     required: 'From state is required'
@@ -329,7 +328,7 @@ class GenerateWorkflow extends Command
     {
         $stubPath = config('workflow.stubs_dir').'/workflow.schema.stub';
 
-        if (!$this->files->exists($stubPath)) {
+        if (! $this->files->exists($stubPath)) {
             error('Stub file does not exist!');
 
             return false;
@@ -347,7 +346,7 @@ class GenerateWorkflow extends Command
 
         $directory = config('workflow.schemas_dir');
 
-        if (!$this->files->exists($directory)) {
+        if (! $this->files->exists($directory)) {
             $this->files->makeDirectory($directory, 0755, true);
         }
 
@@ -366,21 +365,21 @@ class GenerateWorkflow extends Command
 
     private function convertArrayToString(array $array, bool $withKeys = false, int $indentLevel = 1): string
     {
-        $indent     = str_repeat('   ', $indentLevel);
+        $indent = str_repeat('   ', $indentLevel);
         $baseIndent = str_repeat('   ', $indentLevel - 1);
 
         $data = array_map(
             function ($value, $key) use ($withKeys, $indent, $indentLevel) {
 
                 $value = match (true) {
-                    is_array($value)  => $this->convertArrayToString($value, true, $indentLevel + 1),
+                    is_array($value) => $this->convertArrayToString($value, true, $indentLevel + 1),
                     is_string($value) => "'$value'",
-                    is_null($value)   => 'null',
-                    is_bool($value)   => $value ? 'true' : 'false',
-                    default           => $value,
+                    is_null($value) => 'null',
+                    is_bool($value) => $value ? 'true' : 'false',
+                    default => $value,
                 };
 
-                if (!$withKeys) {
+                if (! $withKeys) {
                     return "{$indent}{$value}";
                 }
 

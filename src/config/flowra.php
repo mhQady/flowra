@@ -1,6 +1,6 @@
 <?php
 
-return[
+return [
     // Define the workflow stubs directory
     'stubs_dir' => base_path('stubs/workflow'),
 

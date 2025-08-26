@@ -46,7 +46,7 @@ class SyncWorkflow extends Command
     {
 
         $this->line('-------------------------------------------------------------------------------⤵⤵ ');
-        if (!$this->option('force')) {
+        if (! $this->option('force')) {
             $this->schemaName = match ($this->argument('workflow')) {
                 null => (function () {
                     return search(
@@ -62,10 +62,10 @@ class SyncWorkflow extends Command
 
                 ValidateWorkflowSchemaService::validate($this->schemaName);
 
-                $schema     = workflow($this->schemaName);
+                $schema = workflow($this->schemaName);
                 $dbWorkflow = $this->WorkflowDataToSchema();
 
-                if (!isset($dbWorkflow['workflow']['name'])) {
+                if (! isset($dbWorkflow['workflow']['name'])) {
                     info('There is no matching workflow in your database.🤷‍♂️');
                     $message = 'Would you like to create a new workflow with name: '.$schema['workflow']['name'].'?';
                 } else {
@@ -143,7 +143,7 @@ class SyncWorkflow extends Command
             \DB::beginTransaction();
             $workflow = Workflow::updateOrcreate(
                 [
-                    'name'       => $schema['workflow']['name'],
+                    'name' => $schema['workflow']['name'],
                     'model_type' => $schema['workflow']['model_type'],
                 ],
                 ['label' => $schema['workflow']['label']]
@@ -194,27 +194,27 @@ class SyncWorkflow extends Command
     private function showDiffData(array $schemaWorkflow, array $dbWorkflow)
     {
         $schema = $this->getFlattenData($schemaWorkflow);
-        $db     = $this->getFlattenData($dbWorkflow);
+        $db = $this->getFlattenData($dbWorkflow);
 
-        $result   = [];
+        $result = [];
         $all_keys = array_unique(array_merge(array_keys($schema), array_keys($db)));
 
         foreach ($all_keys as $key) {
             $schema_value = $schema[$key] ?? '';
-            $db_value     = $db[$key]     ?? '';
+            $db_value = $db[$key] ?? '';
 
             if ($schema_value !== $db_value) {
 
                 $level = match (true) {
-                    $schema_value && $db_value  => 'update',
-                    $schema_value && !$db_value => 'create',
-                    default                     => 'delete',
+                    $schema_value && $db_value => 'update',
+                    $schema_value && ! $db_value => 'create',
+                    default => 'delete',
                 };
 
                 $result[$level][] = [
-                    'path'   => $key,
+                    'path' => $key,
                     'schema' => $schema_value,
-                    'db'     => $db_value,
+                    'db' => $db_value,
                 ];
             }
         }
@@ -251,8 +251,8 @@ class SyncWorkflow extends Command
 
         $states = $workflow?->states()->with('parent:id,name')->get(['name', 'label', 'parent_id'])->map(function ($item) {
             return [
-                'name'      => $item->name,
-                'label'     => $item->getTranslations('label'),
+                'name' => $item->name,
+                'label' => $item->getTranslations('label'),
                 'parent_id' => $item->parent?->name,
             ];
         });
@@ -260,10 +260,10 @@ class SyncWorkflow extends Command
             ->get(['name', 'label', 'from_state_id', 'to_state_id'])
             ->map(function ($transition) {
                 return [
-                    'name'       => $transition->name,
-                    'label'      => $transition->getTranslations('label'),
+                    'name' => $transition->name,
+                    'label' => $transition->getTranslations('label'),
                     'from_state' => $transition->fromState?->name,
-                    'to_state'   => $transition->toState?->name,
+                    'to_state' => $transition->toState?->name,
                 ];
             });
 
@@ -272,8 +272,8 @@ class SyncWorkflow extends Command
         unset($workflow['id']);
 
         return [
-            'workflow'    => $workflow,
-            'states'      => $states?->toArray(),
+            'workflow' => $workflow,
+            'states' => $states?->toArray(),
             'transitions' => $transitions?->toArray(),
         ];
     }

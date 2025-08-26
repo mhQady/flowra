@@ -1,6 +1,5 @@
 <?php
 
-
 namespace Flowra\Traits;
 
 use App\Events\TransitionApplied;
@@ -32,7 +31,7 @@ trait HasWorkflow
     // attribute necessary for loading workflow relation correctly
     public function workflowTypeKey(): Attribute
     {
-        return Attribute::make(fn() => static::class);
+        return Attribute::make(fn () => static::class);
     }
 
     public function workflows(): HasMany
@@ -60,7 +59,7 @@ trait HasWorkflow
     {
         if (is_string($workflow)) {
             $workflow = Workflow::where('name', $workflow)->where('model_type', $this::class)->first([
-                'id', 'name', 'model_type'
+                'id', 'name', 'model_type',
             ]);
         }
 
@@ -81,7 +80,7 @@ trait HasWorkflow
     public function nextAllowedTransitions(?Workflow $workflow = null): ?Collection
     {
         $workflow = $workflow ?? $this->workflow;
-        if (!$workflow) {
+        if (! $workflow) {
             $workflow = Workflow::where('model_type', $this::class)->first();
         }
 
@@ -95,7 +94,7 @@ trait HasWorkflow
      */
     public function validateWorkflow(?Workflow $workflow): void
     {
-        throw_if(!$workflow, new \Exception('There is no workflow assigned to this model type'));
+        throw_if(! $workflow, new \Exception('There is no workflow assigned to this model type'));
         throw_if($workflow->model_type !== $this::class, new \Exception('Workflow doesn\'t belong to this type'));
     }
 
@@ -110,7 +109,7 @@ trait HasWorkflow
             $transition = Transition::where('name', $transition)->first();
         }
 
-        if (!$transition) {
+        if (! $transition) {
             throw new ApplyTransitionException(message('Transition not found, please check transition name or make sure to run workflow:sync command.')->severityError());
         }
 
@@ -147,7 +146,7 @@ trait HasWorkflow
         throw_if($workflow->model_type !== $this::class,
             new ApplyTransitionException(message("The workflow ({$workflow->label}) is not applicable to model type ($this::class).")->severityError()));
 
-        throw_if(!$this->nextAllowedTransitions($workflow)?->contains($transition),
+        throw_if(! $this->nextAllowedTransitions($workflow)?->contains($transition),
             new ApplyTransitionException(message("Transition ({$transition?->label}) is not allowed from current state ({$this->currentState($workflow)->first()?->label})")->severityError()));
     }
 
@@ -175,7 +174,7 @@ trait HasWorkflow
             $transition = Transition::where('name', $transition)->first();
         }
 
-        if (!$transition) {
+        if (! $transition) {
             return false;
         }
 
@@ -271,4 +270,3 @@ trait HasWorkflow
         });
     }
 }
-
