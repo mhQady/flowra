@@ -15,17 +15,16 @@ class FlowraServiceProvider extends ServiceProvider
             $this->commands([
                 \Flowra\Console\GenerateWorkflow::class,
             ]);
+
         }
 
-        //     // Publish migrations
-        //     $this->publishes([
-        //         __DIR__.'/../database/migrations/' => database_path('migrations'),
-        //     ], 'flowra-migrations');
+        // Publish config
+        $this->publishes([
+            __DIR__.'/config/flowra.php' => config_path('flowra.php'),
+        ], 'flowra-config');
 
-        //     // Publish config
-        //     $this->publishes([
-        //     __DIR__.'/../config/flowra.php' => config_path('flowra.php'),
-        //     ], 'flowra-config');
-        // }
+        $this->publishes([
+            __DIR__.'/database/migrations/' => database_path('migrations'),
+        ], 'flowra-migrations');
     }
 }

@@ -4,15 +4,23 @@
   "description": "A powerful and flexible workflow management package for Laravel that stores and manages workflows entirely in your database. It enables you to define states, transitions, and actions dynamically without hardcoding logic, giving you full control over business processes.",
   "keywords": [
     "laravel",
-    "workflow"
+    "workflow",
+    "state machine",
+    "flow",
+    "status"
   ],
   "license": "MIT",
+  "authors": [
+    {
+      "name": "Mohamed AlQady",
+      "email": "mh.qady@gmail.com"
+    }
+  ],
   "require": {
     "php": "^8.4",
     "illuminate/support": "^12.24"
   },
   "require-dev": {
-    "laravel/pint": "*",
     "orchestra/testbench": "^10.4",
     "pestphp/pest": "^4.0"
   },
@@ -22,6 +30,7 @@
     }
   },
   "extra": {
+    "component": "package",
     "laravel": {
       "providers": [
         "Flowra\\FlowraServiceProvider"
@@ -31,13 +40,8 @@
       }
     }
   },
-  "authors": [
-    {
-      "name": "mhQady",
-      "email": "mh.qady@gmail.com"
-    }
-  ],
-  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "minimum-stability": "dev",
   "autoload-dev": {
     "psr-4": {
       "Tests\\": "tests/",
@@ -57,9 +61,6 @@
       "Composer\\Config::disableProcessTimeout",
       "@build",
       "@php vendor/bin/testbench serve --ansi"
-    ],
-    "lint": [
-      "@php vendor/bin/pint --ansi"
     ],
     "test": "vendor/bin/pest --colors=always",
     "art": "vendor/bin/testbench"

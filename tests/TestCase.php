@@ -22,12 +22,21 @@ abstract class TestCase extends Orchestra
      */
     protected function defineEnvironment($app): void
     {
-        // Example: configure database if your package needs it
-        // $app['config']->set('database.default', 'testing');
-        // $app['config']->set('database.connections.testing', [
-        //     'driver' => 'sqlite',
-        //     'database' => ':memory:',
-        //     'prefix' => '',
-        // ]);
+        $app['config']->set('database.default', 'sqlite');
+        $app['config']->set('database.connections.sqlite', [
+            'driver' => 'sqlite',
+            // keep the DB file inside your package so it persists between runs:
+            'database' => __DIR__.'/../src/database/testing.sqlite',
+            'prefix' => '',
+            'foreign_key_constraints' => true,
+        ]);
+    }
+
+
+    protected function defineDatabaseMigrations(): void
+    {
+        // Load your package migrations
+        $this->loadMigrationsFrom(__DIR__.'/database/migrations');
+
     }
 }

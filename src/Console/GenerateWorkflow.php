@@ -3,18 +3,17 @@
 namespace Flowra\Console;
 
 // use App\Models\Workflow;
+use Flowra\Models\Context;
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
-
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\form;
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\multiselect;
 use function Laravel\Prompts\select;
-use function Laravel\Prompts\spin;
 use function Laravel\Prompts\text;
 use function Laravel\Prompts\textarea;
 
@@ -31,9 +30,23 @@ class GenerateWorkflow extends Command
 
     public function handle()
     {
-        $this->line('<comment> ⚙️ ----------------------------------------------------------------⤵⤵ </comment>');
-               $workflow = $this->collectWorkflowData();
-               $this->line('<comment> ⚙️ ----------------------------------------------------------------|| </comment>');
+//        $f = Context::query()->firstOrCreate(['id' => 1]);
+        $f = Context::query()->firstOrCreate(['id' => 1]);
+
+
+        $this->info("Context [{$f->id}] created.");
+
+//        $f->farzApplicationMainFlow->fillingOwnerData->apply();
+
+        dd($f->mainFlow->history());
+
+        return self::SUCCESS;
+//        $s = $f->farzApplicationMainFlow->current();
+//
+//        dd($s);
+//        $this->line('<comment> ⚙️ ----------------------------------------------------------------⤵⤵ </comment>');
+//        $workflow = $this->collectWorkflowData();
+//        $this->line('<comment> ⚙️ ----------------------------------------------------------------|| </comment>');
         //        $states = $this->collectStates();
         //        $this->line('----------------------------------------------------------------|| ');
         //        $states = $this->assignParentStates($states);
@@ -118,7 +131,7 @@ class GenerateWorkflow extends Command
             validate: [
                 'states' => function ($attribute, $value, $fail) {
 
-                    $states = collect(explode(',', $value))->map(fn ($state) => getStandardStr($state));
+                    $states = collect(explode(',', $value))->map(fn($state) => getStandardStr($state));
 
                     if ($states->duplicates()->first()) {
                         $fail('Duplicate state name found.');
@@ -128,7 +141,7 @@ class GenerateWorkflow extends Command
                         $fail('You must enter at least two states.');
                     }
 
-                    if ($states->contains(fn ($stateName) => $stateName === Workflow::INIT_STATE)) {
+                    if ($states->contains(fn($stateName) => $stateName === Workflow::INIT_STATE)) {
                         $fail(Workflow::INIT_STATE.' is reserved state name.');
                     }
                 },
@@ -139,7 +152,7 @@ class GenerateWorkflow extends Command
 
         return collect(explode(',', $states))
             // Remove empty states
-            ->filter(fn ($state) => ! empty($state))
+            ->filter(fn($state) => !empty($state))
             // Make state name standard & collect labels
             ->map(function ($state) {
 
@@ -156,18 +169,20 @@ class GenerateWorkflow extends Command
                 return ['name' => getStandardStr($state), 'label' => $label, 'parent_id' => null];
             })
             // Add init state
-            ->prepend(['name' => Workflow::INIT_STATE, 'label' => ['ar' => 'البدء', 'en' => 'Initiated'], 'parent_id' => null]);
+            ->prepend([
+                'name' => Workflow::INIT_STATE, 'label' => ['ar' => 'البدء', 'en' => 'Initiated'], 'parent_id' => null
+            ]);
     }
 
     private function assignParentStates(Collection $states): Collection
     {
-        if (! confirm(label: 'Do you want to assign parent states?', yes: 'I Do 😁', no: 'I Don\'t 😟')) {
+        if (!confirm(label: 'Do you want to assign parent states?', yes: 'I Do 😁', no: 'I Don\'t 😟')) {
             return $states;
         }
 
         $parentState = select(
             '️ Select Parent State:',
-            $states->map(fn ($state) => $state['name'])->filter(fn ($state) => $state != Workflow::INIT_STATE)->values(),
+            $states->map(fn($state) => $state['name'])->filter(fn($state) => $state != Workflow::INIT_STATE)->values(),
             //            validate: fn ($val) => match ($this->filteredStatesForTransitions(
             //                $states,
             //                $val,
@@ -179,7 +194,9 @@ class GenerateWorkflow extends Command
             required: 'Parent state is required'
         );
 
-        $childrenStates = multiselect('select children states:', $states->map(fn ($state) => $state['name'])->filter(fn ($name) => ! in_array($name, [$parentState, Workflow::INIT_STATE]))->values(), required: 'Children states are required');
+        $childrenStates = multiselect('select children states:',
+            $states->map(fn($state) => $state['name'])->filter(fn($name) => !in_array($name,
+                [$parentState, Workflow::INIT_STATE]))->values(), required: 'Children states are required');
 
         return $states->map(function ($state) use ($parentState, $childrenStates) {
             if (in_array($state['name'], $childrenStates)) {
@@ -194,7 +211,7 @@ class GenerateWorkflow extends Command
     {
         $statesCount = $states->count();
 
-        $states = $states->map(fn ($state) => $state['name'])->values();
+        $states = $states->map(fn($state) => $state['name'])->values();
 
         $transitions = collect();
 
@@ -202,13 +219,13 @@ class GenerateWorkflow extends Command
 
         while (true) {
             $transitions->push($this->drawTransitionForm(
-                $states->filter(fn ($state) => $state != Workflow::INIT_STATE)->values(),
+                $states->filter(fn($state) => $state != Workflow::INIT_STATE)->values(),
                 $transitions
             ));
 
             // Break when all possible transitions are created
             if (
-                $transitions->count() === calcPossibleTransitions($statesCount) || ! confirm(
+                $transitions->count() === calcPossibleTransitions($statesCount) || !confirm(
                     label: 'Do you wanna add another transition?',
                     default: true,
                     yes: 'Yes',
@@ -227,7 +244,7 @@ class GenerateWorkflow extends Command
         $firstState = $states->first();
 
         $startTransition = $this->drawTransitionForm(
-            $states->filter(fn ($state) => $state != $firstState),
+            $states->filter(fn($state) => $state != $firstState),
             collect(),
             $firstState
         );
@@ -283,7 +300,7 @@ class GenerateWorkflow extends Command
                 return select(
                     "️ Select From state for {$trans['name']}:",
                     $states,
-                    validate: fn ($val) => match ($this->filteredStatesForTransitions(
+                    validate: fn($val) => match ($this->filteredStatesForTransitions(
                         $states,
                         $val,
                         $transitions
@@ -296,7 +313,7 @@ class GenerateWorkflow extends Command
             }, name: 'from_state')
             // Collect to state
             ->add(
-                fn ($trans) => select(
+                fn($trans) => select(
                     "Select To state for {$trans['name']} 👨🏽‍🦯:",
                     options: $this->filteredStatesForTransitions($states, $trans['from_state'], $transitions),
                     required: 'To state is required'
@@ -314,7 +331,7 @@ class GenerateWorkflow extends Command
     private function filteredStatesForTransitions(Collection $states, string $fromState, Collection $transitions)
     {
         $usedStates = $transitions
-            ->filter(fn ($item) => $item['from_state'] === $fromState)
+            ->filter(fn($item) => $item['from_state'] === $fromState)
             ->pluck('to_state');
 
         $values = $states->filter(function ($item) {
@@ -328,7 +345,7 @@ class GenerateWorkflow extends Command
     {
         $stubPath = config('workflow.stubs_dir').'/workflow.schema.stub';
 
-        if (! $this->files->exists($stubPath)) {
+        if (!$this->files->exists($stubPath)) {
             error('Stub file does not exist!');
 
             return false;
@@ -346,7 +363,7 @@ class GenerateWorkflow extends Command
 
         $directory = config('workflow.schemas_dir');
 
-        if (! $this->files->exists($directory)) {
+        if (!$this->files->exists($directory)) {
             $this->files->makeDirectory($directory, 0755, true);
         }
 
@@ -379,7 +396,7 @@ class GenerateWorkflow extends Command
                     default => $value,
                 };
 
-                if (! $withKeys) {
+                if (!$withKeys) {
                     return "{$indent}{$value}";
                 }
 
