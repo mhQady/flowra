@@ -1,0 +1,9 @@
+<?php
+
+namespace {{ namespace }};
+
+enum {{ states_class }}: string
+{
+    case INIT = 'init';
+    case STEP_ONE_COMPLETED = 'step_one_completed';
+}

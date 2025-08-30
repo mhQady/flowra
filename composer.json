@@ -6,8 +6,8 @@
     "laravel",
     "workflow",
     "state machine",
-    "flow",
-    "status"
+    "status",
+    "flowra"
   ],
   "license": "MIT",
   "authors": [
@@ -18,7 +18,7 @@
   ],
   "require": {
     "php": "^8.4",
-    "illuminate/support": "^12.24"
+    "illuminate/support": "^v12.0.0"
   },
   "require-dev": {
     "orchestra/testbench": "^10.4",

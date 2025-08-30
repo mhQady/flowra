@@ -1,0 +1,21 @@
+<?php
+
+namespace {{ namespace }};
+
+use Flowra\Attributes\TransitionMeta;
+use Flowra\Flow\BaseFlow;
+use Flowra\Flow\Transition;
+
+class {{ class }} extends BaseFlow
+{
+    // Example initial self-transition (adjust/remove as you wish)
+    #[TransitionMeta(title: '{{ flow_title }} / Init')]
+    public function initiating(): Transition
+    {
+        return $this->t(
+            key: 'initiating',
+            from: {{ states_class }}::INIT,
+            to:   {{ states_class }}::OWNER_INFO_ENTERED,
+        );
+    }
+}
