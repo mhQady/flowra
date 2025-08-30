@@ -19,7 +19,7 @@ return new class extends Migration {
             $table->timestamps();
         });
 
-        Schema::create(config('flowra.tables.history'), function (Blueprint $table) {
+        Schema::create(config('flowra.tables.registry'), function (Blueprint $table) {
             $table->id();
             $table->morphs('owner');
             $table->string('workflow');
@@ -34,7 +34,7 @@ return new class extends Migration {
 
     public function down(): void
     {
-        Schema::dropIfExists(config('flowra.tables.statuses_history'));
+        Schema::dropIfExists(config('flowra.tables.registry'));
         Schema::dropIfExists(config('flowra.tables.statuses'));
     }
 };

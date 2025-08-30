@@ -4,7 +4,7 @@ return [
 
     'tables' => [
         'statuses' => 'statuses',
-        'history' => 'statuses_history',
+        'registry' => 'statuses_registry',
     ],
 
 //    // Define the workflow stubs directory

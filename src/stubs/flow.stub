@@ -3,8 +3,8 @@
 namespace {{ namespace }};
 
 use Flowra\Attributes\TransitionMeta;
-use Flowra\Flow\BaseFlow;
-use Flowra\Flow\Transition;
+use Flowra\Flows\BaseFlow;
+use Flowra\DTOs\Transition;
 
 class {{ class }} extends BaseFlow
 {
@@ -15,7 +15,7 @@ class {{ class }} extends BaseFlow
         return $this->t(
             key: 'initiating',
             from: {{ states_class }}::INIT,
-            to:   {{ states_class }}::OWNER_INFO_ENTERED,
+            to:   {{ states_class }}::STEP_ONE_COMPLETED,
         );
     }
 }

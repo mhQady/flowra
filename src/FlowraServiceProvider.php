@@ -14,6 +14,7 @@ class FlowraServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 \Flowra\Console\GenerateFlow::class,
+                \Flowra\Console\ListWorkflow::class,
             ]);
         }
 

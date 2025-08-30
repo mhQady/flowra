@@ -2,6 +2,7 @@
 
 namespace Flowra\Models;
 
+use App\Flows\FarzApplicationMainFlow\FarzApplicationMainFlow;
 use Flowra\Contracts\HasFlowContract;
 use Flowra\Flows\MainFlow\MainFlow;
 use Flowra\Traits\HasFlow;

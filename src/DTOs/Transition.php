@@ -13,7 +13,9 @@ class Transition
         public readonly UnitEnum $from,
         public readonly UnitEnum $to,
         public readonly BaseFlow $flow,
-        public array $comment = [],     // optional payload to store in history/status
+        // guard: fn($flow) => $flow->model->owner_name && $flow->model->owner_national_id,
+        // action: fn($flow) => event(new OwnerInfoEntered($flow->model)),
+        public ?array $comment = null,
         public ?int $appliedBy = null,  // optional user id
     )
     {
@@ -23,9 +25,9 @@ class Transition
     /**
      * @throws Throwable
      */
-    public function apply(): BaseFlow
+    public function apply(?array $comment = null): BaseFlow
     {
-        return $this->flow->apply($this);
+        return $this->flow->apply($this, $comment);
     }
 
 }

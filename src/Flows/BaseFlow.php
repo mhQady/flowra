@@ -4,7 +4,7 @@ namespace Flowra\Flows;
 
 use Flowra\Contracts\HasFlowContract;
 use Flowra\DTOs\Transition;
-use Flowra\Models\History;
+use Flowra\Models\Registry;
 use Flowra\Models\Status;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -30,21 +30,23 @@ class BaseFlow
         return new Transition(key: $key, from: $from, to: $to, flow: $this, comment: $comment);
     }
 
-
-    public function current(): ?string
+    public function status(): ?Status
     {
-        $row = Status::query()
+        return Status::query()
             ->where('owner_type', $this->model->getMorphClass())
             ->where('owner_id', $this->model->getKey())
             ->where('workflow', $this->flowKey)
             ->first();
-
-        return $row?->to;
     }
 
-    public function history(): Collection
+    public function currentStatus(): ?string
     {
-        return History::query()
+        return $this->status()?->to;
+    }
+
+    public function registry(): Collection
+    {
+        return Registry::query()
             ->where('owner_type', $this->model->getMorphClass())
             ->where('owner_id', $this->model->getKey())
             ->where('workflow', $this->flowKey)
@@ -55,50 +57,80 @@ class BaseFlow
      * Apply a Transition atomically.
      * @throws Throwable
      */
-    public function apply(Transition $t): static
+    public function apply(Transition $t, ?array $comment = null): static
     {
-        // determine current (if not started, you may treat "from" as the expected initial)
-        $current = $this->current();
-        if ($current === null) {
-            // first transition must start from its declared 'from'
-            $current = $t->from;
-        }
-//        dd($current, $t->from->value);
-        if ($current !== $t->from) {
-            throw new RuntimeException("Invalid from-state: expected '{$current}', got '{$t->from->value}'.");
-        }
+        $this->__validateTransitionApplicable($t);
 
-        DB::transaction(function () use ($t) {
+        DB::transaction(function () use ($t, $comment) {
 
-            Status::query()->updateOrCreate(
-                [
-                    'owner_type' => $this->model->getMorphClass(),
-                    'owner_id' => $this->model->getKey(),
-                    'workflow' => $this->flowKey,
-                ],
-                [
-                    'transition' => $t->key,
-                    'from' => $t->from,
-                    'to' => $t->to,
-                    'comment' => $t->comment ?: null,
-                    // 'applied_by' => $t->appliedBy, // uncomment if you add the column
-                ]
-            );
+            if (!$comment) {
+                $t->comment = $comment;
+            }
 
-            // append to history
-            History::query()->create([
-                'owner_type' => $this->model->getMorphClass(),
-                'owner_id' => $this->model->getKey(),
-                'workflow' => $this->flowKey,
-                'transition' => $t->key,
-                'from' => $t->from,
-                'to' => $t->to,
-                'comment' => $t->comment ?: null,
-                // 'applied_by' => $t->appliedBy,
-            ]);
+            $this->__saveStatus($t);
+
+            $this->__appendToRegistry($t);
         });
 
         return $this;
+    }
+
+    private function __validateTransitionApplicable(Transition $t): void
+    {
+        if (!$this->model->exists)
+            throw new RuntimeException("Model that apply transition does not exist");
+
+        if (!isset($this->model->flows) || !in_array(static::class, $this->model->flows))
+            throw new RuntimeException('Flow ('.$this::class.') is not registered for model ('.$this->model::class.')');
+
+        if ($t->flow::class !== static::class)
+            throw new RuntimeException('Transition ('.$t->key.') is not applicable for flow ('.$this::class.')');
+
+        // determine current (if not started, you may treat "from" as the expected initial)
+        if (($current = $this->currentStatus() ?? $t->from->value) !== $t->from->value)
+            throw new RuntimeException("Applying transition ({$t->key}) while current state is ({$current}) is not applicable, current state must be ({$t->from->value}).");
+
+    }
+
+    /**
+     * @param  Transition  $t
+     * @return void
+     */
+    private function __saveStatus(Transition $t): void
+    {
+        Status::query()->updateOrCreate(
+            [
+                'owner_type' => $this->model->getMorphClass(),
+                'owner_id' => $this->model->getKey(),
+                'workflow' => $this->flowKey,
+            ],
+            [
+                'transition' => $t->key,
+                'from' => $t->from,
+                'to' => $t->to,
+                'comment' => $t->comment,
+                // 'applied_by' => $t->appliedBy,
+            ]
+        );
+    }
+
+
+    /**
+     * @param  Transition  $t
+     * @return void
+     */
+    private function __appendToRegistry(Transition $t): void
+    {
+        Registry::query()->create([
+            'owner_type' => $this->model->getMorphClass(),
+            'owner_id' => $this->model->getKey(),
+            'workflow' => $this->flowKey,
+            'transition' => $t->key,
+            'from' => $t->from,
+            'to' => $t->to,
+            'comment' => $t->comment,
+            // 'applied_by' => $t->appliedBy,
+        ]);
     }
 
     public function __get(string $name)

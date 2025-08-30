@@ -10,10 +10,10 @@ use Str;
 class GenerateFlow extends Command
 {
     protected $signature = 'flowra:generate
-        {name : Workflow name, e.g. Main}';
-//        {--path=app/Flows : Base directory where the workflow folder will be created}
-//        {--namespace=App\\Flows : Root namespace for generated classes}
-//        {--force : Overwrite existing files}';
+        {name : Workflow name, e.g. Main}
+        {--path=app/Flows : Base directory where the workflow folder will be created}
+        {--namespace=App\\Flows : Root namespace for generated classes}
+        {--force : Overwrite existing files}';
 
     protected $description = 'Generate a workflow skeleton (Flow.php + FlowStates.php) into a dedicated folder';
 

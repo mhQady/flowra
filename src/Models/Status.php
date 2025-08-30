@@ -16,7 +16,7 @@ class Status extends Model
 
     public function __construct(array $attributes = [])
     {
-        $this->table = config('flowra.tables.statuses', 'flowra_statuses');
+        $this->table = config('flowra.tables.statuses', 'statuses');
         parent::__construct($attributes);
     }
 
