@@ -2,7 +2,7 @@
 
 namespace Tests;
 
-use Flowra\FlowraServiceProvider;
+use Flowra\Enums\FlowraServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class TestCase extends Orchestra

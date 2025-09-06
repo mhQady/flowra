@@ -2,6 +2,7 @@
 
 namespace Flowra\DTOs;
 
+use Flowra\Enums\TransitionTypesEnum;
 use Flowra\Flows\BaseFlow;
 use Throwable;
 use UnitEnum;
@@ -17,8 +18,8 @@ class Transition
         // action: fn($flow) => event(new OwnerInfoEntered($flow->model)),
         public ?array $comment = null,
         public ?int $appliedBy = null,  // optional user id
-    )
-    {
+        public int $type = TransitionTypesEnum::TRANSITION->value
+    ) {
 
     }
 

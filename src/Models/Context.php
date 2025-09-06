@@ -2,23 +2,24 @@
 
 namespace Flowra\Models;
 
-use App\Flows\FarzApplicationMainFlow\FarzApplicationMainFlow;
-use Flowra\Contracts\HasFlowContract;
+use Flowra\Contracts\HasWorkflowContract;
 use Flowra\Flows\MainFlow\MainFlow;
-use Flowra\Traits\HasFlow;
+use Flowra\Traits\HasWorkflow;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * @property MainFlow $mainFlow
  */
-class Context extends Model implements HasFlowContract
+class Context extends Model implements HasWorkflowContract
 {
-    use HasFlow;
+    use HasWorkflow;
 
     protected $table = 'contexts';
 
     protected $fillable = ['id'];
 
-    public array $flows = [MainFlow::class];
+    public array $flows = [
+        \Flowra\Flows\MainFlow\MainFlow::class
+    ];
 
 }

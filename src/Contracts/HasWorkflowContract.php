@@ -2,7 +2,7 @@
 
 namespace Flowra\Contracts;
 
-interface HasFlowContract
+interface HasWorkflowContract
 {
 
 }

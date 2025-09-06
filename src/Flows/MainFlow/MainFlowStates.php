@@ -2,6 +2,7 @@
 
 namespace Flowra\Flows\MainFlow;
 
+
 use Flowra\Traits\BaseEnum;
 
 enum MainFlowStates: string

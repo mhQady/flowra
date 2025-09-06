@@ -16,7 +16,7 @@ trait BaseEnum
                 'value' => $status->value,
                 'label' => __('enum.'.$baseName.'.'.strtolower($status->name)),
             ];
-        },self::cases());
+        }, self::cases());
     }
 
     public static function values(): array

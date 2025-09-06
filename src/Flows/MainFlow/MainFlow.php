@@ -9,7 +9,7 @@ use Flowra\Flows\BaseFlow;
 class MainFlow extends BaseFlow
 {
     #[TransitionMeta(title: 'إدخال بيانات ملكية العقار / Filling Owner Data')]
-    public function fillingOwnerData(): Transition
+    public function fillingOwnerDataTransition(): Transition
     {
         return $this->t(
             key: 'filling_owner_data',
@@ -19,7 +19,7 @@ class MainFlow extends BaseFlow
     }
 
     #[TransitionMeta(title: 'الإرسال لإعتماد المكتب الهندسي / Sending for EngOffice Credence')]
-    public function sendingForEngofficeCredence(): Transition
+    public function sendingForEngofficeCredenceTransition(): Transition
     {
         return $this->t(
             key: 'sending_for_engoffice_credence',
@@ -39,7 +39,7 @@ class MainFlow extends BaseFlow
     }
 
     #[TransitionMeta(title: 'قيد الإلغاء من قبل المساح / Cancelling by Surveyor')]
-    public function cancellingBySurveyorWhileEditing(): Transition
+    public function cancellingBySurveyorWhileEditingTransition(): Transition
     {
         return $this->t(
             key: 'cancelling_by_surveyor_while_editing',

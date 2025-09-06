@@ -1,5 +1,6 @@
 <?php
 
+use Flowra\Enums\TransitionTypesEnum;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,10 +13,11 @@ return new class extends Migration {
             $table->morphs('owner');
             $table->string('workflow');
             $table->string('transition');
-            $table->string('from');
+            $table->string('from')->nullable();
             $table->string('to');
             $table->json('comment')->nullable()->default(null);
 //            $table->foreignId('applied_by')->nullable()->constrained('users');
+            $table->unsignedTinyInteger('type')->default(TransitionTypesEnum::TRANSITION->value);
             $table->timestamps();
         });
 
@@ -24,10 +26,11 @@ return new class extends Migration {
             $table->morphs('owner');
             $table->string('workflow');
             $table->string('transition');
-            $table->string('from');
+            $table->string('from')->nullable();
             $table->string('to');
             $table->json('comment')->nullable()->default(null);
 //            $table->foreignId('applied_by')->nullable()->constrained('users');
+            $table->unsignedTinyInteger('type')->default(TransitionTypesEnum::TRANSITION->value);
             $table->timestamps();
         });
     }

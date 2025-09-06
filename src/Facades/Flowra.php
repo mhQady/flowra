@@ -1,6 +1,6 @@
 <?php
 
-namespace Flowra\Facades;
+namespace Flowra\Enums\Facades;
 
 use Illuminate\Support\Facades\Facade;
 

@@ -2,8 +2,6 @@
 
 namespace Flowra\Console;
 
-use Flowra\DTOs\Transition;
-use Flowra\Flows\MainFlow\MainFlow;
 use Flowra\Flows\MainFlow\MainFlowStates;
 use Flowra\Models\Context;
 use Illuminate\Console\Command;
@@ -22,17 +20,17 @@ class ListWorkflow extends Command
     {
 
         $flow = Context::query()->firstOrCreate(['id' => 1]);
-        $f = new MainFlow($flow);
-        $d = $flow->mainFlow->apply(new Transition(
-            key: 'cancelling_by_surveyor_while_editing',
-            from: MainFlowStates::SENT_BACK_TO_SURVEYOR_FOR_REVISION,
-            to: MainFlowStates::CANCELLED_BY_SURVEYOR,
-            flow: $f,
-        ));
 
-        dd($flow, $d);
+//        $t = $flow->mainFlow->cancellingBySurveyorWhileEditing->apply(['test for comment']);
+//        $t = $flow->mainFlow->jump(MainFlowStates::SENT_BACK_TO_SURVEYOR_FOR_REVISION);
+
+        dd($flow->mainFlowStatus()->first());
+        dd(Context::withWhereHas('mainFlowStatus',
+            fn($query) => $query->where('to', MainFlowStates::CANCELLED_BY_SURVEYOR))->get());
+//        dd($flow->mainFlow->currentStatus());
+        dd($flow->mainFlow->jump(MainFlowStates::SENT_BACK_TO_SURVEYOR_FOR_REVISION));
 //        spin(message: 'Loading Workflows. Please wait... 🤔', callback: function () {
-//
+// 
 //            $workflows = Workflow::when($this->argument('workflow'),
 //                fn($query) => $query->where('name', $this->argument('workflow')))
 //                ->get(['id', 'name', 'model_type', 'label']);

@@ -13,7 +13,7 @@ return [
 //    // Define the workflow schemas directory
 //    'schemas_dir' => base_path('database/workflows'),
 //
-//    // Define the HasFlow trait
-//    // Using HasFlow inside a model it what determine if that model can use workflow or not
-//    'has_workflow' => Flowra\Traits\HasFlow::class,
+//    // Define the HasWorkflow trait
+//    // Using HasWorkflow inside a model it what determine if that model can use workflow or not
+//    'has_workflow' => Flowra\Traits\HasWorkflow::class,
 ];
