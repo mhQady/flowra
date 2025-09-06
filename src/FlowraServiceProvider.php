@@ -22,8 +22,10 @@ class FlowraServiceProvider extends ServiceProvider
             __DIR__.'/config/flowra.php' => config_path('flowra.php'),
         ], 'flowra-config');
 
+        $timestamp = date('Y_m_d_His');
+
         $this->publishes([
-            __DIR__.'/database/migrations/' => database_path('migrations'),
+            __DIR__.'/database/migrations/create_flowra_tables.php' => database_path("migrations/{$timestamp}_create_flowra_tables.php"),
         ], 'flowra-migrations');
 
         $this->publishes([
