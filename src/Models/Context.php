@@ -3,12 +3,12 @@
 namespace Flowra\Models;
 
 use Flowra\Contracts\HasWorkflowContract;
-use Flowra\Flows\MainFlow\MainFlow;
+use Flowra\Flows\MainFlow\MainWorkflow;
 use Flowra\Traits\HasWorkflow;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * @property MainFlow $mainFlow
+ * @property MainWorkflow $mainWorkflow
  */
 class Context extends Model implements HasWorkflowContract
 {
@@ -18,8 +18,9 @@ class Context extends Model implements HasWorkflowContract
 
     protected $fillable = ['id'];
 
-    public array $flows = [
-        \Flowra\Flows\MainFlow\MainFlow::class
+    public array $workflows = [
+        \Flowra\Flows\MainFlow\MainWorkflow::class,
+        \App\Workflows\Test2Workflow\Test2Workflow::class
     ];
 
 }

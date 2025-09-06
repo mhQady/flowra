@@ -3,7 +3,7 @@
 namespace Flowra\DTOs;
 
 use Flowra\Enums\TransitionTypesEnum;
-use Flowra\Flows\BaseFlow;
+use Flowra\Flows\BaseWorkflow;
 use Throwable;
 use UnitEnum;
 
@@ -13,7 +13,7 @@ class Transition
         public readonly string $key,
         public readonly UnitEnum $from,
         public readonly UnitEnum $to,
-        public readonly BaseFlow $flow,
+        public readonly BaseWorkflow $workflow,
         // guard: fn($flow) => $flow->model->owner_name && $flow->model->owner_national_id,
         // action: fn($flow) => event(new OwnerInfoEntered($flow->model)),
         public ?array $comment = null,
@@ -26,9 +26,9 @@ class Transition
     /**
      * @throws Throwable
      */
-    public function apply(?array $comment = null): BaseFlow
+    public function apply(?array $comment = null): BaseWorkflow
     {
-        return $this->flow->apply($this, $comment);
+        return $this->workflow->apply($this, $comment);
     }
 
 }

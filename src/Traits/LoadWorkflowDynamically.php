@@ -5,32 +5,32 @@ namespace Flowra\Traits;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\Str;
 
-trait LoadFlowDynamically
+trait   LoadWorkflowDynamically
 {
     /** @var array<class-string, object> */
-    protected array $flowInstances = [];
+    protected array $workflowInstances = [];
 
     /** @return array<class-string> */
-    private function __appliedFlows(): array
+    private function __appliedWorkflows(): array
     {
-        return property_exists($this, 'flows') ? $this->flows : [];
+        return property_exists($this, 'workflows') ? $this->workflows : [];
     }
 
-    /** Reverse lookup: from property name to class, or null if not a flow prop */
-    private function __flowClassForProperty(string $prop): ?string
+    /** Reverse lookup: from property name to class, or null if not a workflow prop */
+    private function __workflowClassForProperty(string $prop): ?string
     {
         return array_find(
-            $this->__appliedFlows(),
+            $this->__appliedWorkflows(),
             fn($class) => Str::of(class_basename($class))->camel()->toString() === Str::of($prop)->camel()->toString()
         );
     }
 
-    /** Lazily make (and cache) an instance of the flow class.
+    /** Lazily make (and cache) an instance of the workflow class.
      * @throws BindingResolutionException
      */
-    private function __makeFlow(string $class): object
+    private function __makeWorkflow(string $class): object
     {
-        return $this->flowInstances[$class] ??= app()->make($class, ['model' => $this]);
+        return $this->workflowInstances[$class] ??= app()->make($class, ['model' => $this]);
     }
 
     /**
@@ -55,17 +55,16 @@ trait LoadFlowDynamically
             return $value;
         }
 
-        if ($class = $this->__flowClassForProperty($key)) {
-            return $this->__makeFlow($class);
+        if ($class = $this->__workflowClassForProperty($key)) {
+            return $this->__makeWorkflow($class);
         }
 
         return $value;
     }
-
-    /** Support isset($context->farzApplicationMainFlow) */
+    
     public function __isset($key): bool
     {
-        if ($class = $this->__flowClassForProperty($key)) {
+        if ($class = $this->__workflowClassForProperty($key)) {
             return true;
         }
         return parent::__isset($key);

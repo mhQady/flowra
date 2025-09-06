@@ -1,4 +1,4 @@
 /vendor
 /.idea
 /workbench
-./src/database/testing.sqlite
+src/database/testing.sqlite

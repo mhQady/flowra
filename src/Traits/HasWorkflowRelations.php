@@ -14,21 +14,21 @@ trait HasWorkflowRelations
 
     protected static function bootHasWorkflowRelations(): void
     {
-        static::__registerFlowsRelations();
+        static::__registerWorkflowsRelations();
     }
 
-    private static function __registerFlowsRelations(): void
+    private static function __registerWorkflowsRelations(): void
     {
-        foreach ((new static)->flows as $flowClass) {
+        foreach ((new static)->workflows as $workflowClass) {
 
-            $alias = Str::camel(class_basename($flowClass));
+            $alias = Str::camel(class_basename($workflowClass));
 
-            static::resolveRelationUsing($alias.'Status', function (Model $model) use ($flowClass) {
-                return $model->morphOne(Status::class, 'owner')->where('workflow', $flowClass);
+            static::resolveRelationUsing($alias.'Status', function (Model $model) use ($workflowClass) {
+                return $model->morphOne(Status::class, 'owner')->where('workflow', $workflowClass);
             });
 
-            static::resolveRelationUsing($alias.'Registry', function (Model $model) use ($flowClass) {
-                return $model->morphMany(Status::class, 'owner')->where('workflow', $flowClass);
+            static::resolveRelationUsing($alias.'Registry', function (Model $model) use ($workflowClass) {
+                return $model->morphMany(Status::class, 'owner')->where('workflow', $workflowClass);
             });
         }
     }

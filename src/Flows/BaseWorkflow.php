@@ -11,7 +11,7 @@ use Flowra\Traits\HasTransitions;
 use Illuminate\Database\Eloquent\Collection;
 use UnitEnum;
 
-class BaseFlow
+class BaseWorkflow
 {
     use HasStates, HasTransitions;
 
@@ -24,7 +24,7 @@ class BaseFlow
     /** helper to construct a bound transition */
     protected function t(string $key, UnitEnum $from, UnitEnum $to, array $comment = []): Transition
     {
-        return new Transition(key: $key, from: $from, to: $to, flow: $this, comment: $comment);
+        return new Transition(key: $key, from: $from, to: $to, workflow: $this, comment: $comment);
     }
 
     public function status(): ?Status

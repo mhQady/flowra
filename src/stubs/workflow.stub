@@ -3,10 +3,10 @@
 namespace {{ namespace }};
 
 use Flowra\Attributes\TransitionMeta;
-use Flowra\Flows\BaseFlow;
+use Flowra\Flows\BaseWorkflow;
 use Flowra\DTOs\Transition;
 
-class {{ class }} extends BaseFlow
+class {{ class }} extends BaseWorkflow
 {
     // Example initial self-transition (adjust/remove as you wish)
     #[TransitionMeta(title: '{{ flow_title }} / Init')]

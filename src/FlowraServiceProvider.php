@@ -9,11 +9,13 @@ class FlowraServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        AboutCommand::add('Flowra', fn() => ['Version' => '0.1.0']);
+        AboutCommand::add('Flowra', fn() => [
+            'Version' => '0.1.2'
+        ]);
 
         if ($this->app->runningInConsole()) {
             $this->commands([
-                \Flowra\Console\GenerateFlow::class,
+                \Flowra\Console\GenerateWorkflow::class,
                 \Flowra\Console\ListWorkflow::class,
             ]);
         }

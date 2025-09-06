@@ -7,15 +7,15 @@ use Illuminate\Filesystem\Filesystem;
 use RuntimeException;
 use Str;
 
-class GenerateFlow extends Command
+class GenerateWorkflow extends Command
 {
     protected $signature = 'flowra:generate
         {name : Workflow name, e.g. Main}
-        {--path=app/Flows : Base directory where the workflow folder will be created}
-        {--namespace=App\\Flows : Root namespace for generated classes}
+        {--path=app/Workflows : Base directory where the workflow folder will be created}
+        {--namespace=App\\Workflows : Root namespace for generated classes}
         {--force : Overwrite existing files}';
 
-    protected $description = 'Generate a workflow skeleton (Flow.php + FlowStates.php) into a dedicated folder';
+    protected $description = 'Generate a workflow skeleton (Workflow.php + WorkflowStates.php) into a dedicated folder';
 
     public function handle(Filesystem $files): int
     {
@@ -23,8 +23,8 @@ class GenerateFlow extends Command
 
         $studly = Str::studly(trim($this->argument('name')));
 
-        if (!Str::endsWith($studly, 'Flow')) {
-            $studly .= 'Flow';
+        if (!Str::endsWith($studly, 'Workflow')) {
+            $studly .= 'Workflow';
         }
 
         $snake = Str::snake($studly);
@@ -34,10 +34,7 @@ class GenerateFlow extends Command
         $namespace = $namespaceRoot.'\\'.$studly;
         $statesClass = $studly.'States';
 
-        $this->__creatFlowDirectory($files, $dir);
-
-        $flowStub = $this->__getStub('flow.stub');
-        $statesStub = $this->__getStub('flowstates.stub');
+        $this->__creatWorkflowDirectory($files, $dir);
 
         $replacements = [
             '{{ namespace }}' => $namespace,
@@ -48,14 +45,15 @@ class GenerateFlow extends Command
             '{{ flow_title }}' => Str::of($snake)->replace('_', ' ')->title(),
         ];
 
-        $renderedFlow = strtr($flowStub, $replacements);
-        $renderedStates = strtr($statesStub, $replacements);
+        $renderedWorkflow = strtr($this->__getStub('workflow.stub'), $replacements);
+        $renderedStates = strtr($this->__getStub('workflowstates.stub'), $replacements);
 
-        $flowFileName = $studly.'.php';
+        $workflowFileName = $studly.'.php';
         $statesFileName = $statesClass.'.php';
 
         $written = 0;
-        $written += $this->__putFile($files, $dir.'/'.$flowFileName, $renderedFlow, (bool) $this->option('force'));
+        $written += $this->__putFile($files, $dir.'/'.$workflowFileName, $renderedWorkflow,
+            (bool) $this->option('force'));
         $written += $this->__putFile($files, $dir.'/'.$statesFileName, $renderedStates,
             (bool) $this->option('force'));
 
@@ -66,7 +64,7 @@ class GenerateFlow extends Command
 
         $this->info("✅ Workflow generated: {$namespace}\\{$studly} (and {$statesClass})");
         $this->line("<comment>• Folder:</comment> {$dir}");
-        $this->line("<comment>• Files:</comment>  $flowFileName, $statesFileName");
+        $this->line("<comment>• Files:</comment>  $workflowFileName, $statesFileName");
 
         $this->line('<info> ----------------------------------------------------------------⤴⤴ </info>');
 
@@ -132,7 +130,7 @@ class GenerateFlow extends Command
      * @param  string  $dir
      * @return void
      */
-    private function __creatFlowDirectory(Filesystem $files, string $dir): void
+    private function __creatWorkflowDirectory(Filesystem $files, string $dir): void
     {
         if (!$files->isDirectory($dir)) {
             $files->makeDirectory($dir, 0777, true);

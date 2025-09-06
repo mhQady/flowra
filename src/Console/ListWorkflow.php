@@ -2,7 +2,7 @@
 
 namespace Flowra\Console;
 
-use Flowra\Flows\MainFlow\MainFlowStates;
+use Flowra\Flows\MainFlow\MainWorkflowStates;
 use Flowra\Models\Context;
 use Illuminate\Console\Command;
 
@@ -22,13 +22,13 @@ class ListWorkflow extends Command
         $flow = Context::query()->firstOrCreate(['id' => 1]);
 
 //        $t = $flow->mainFlow->cancellingBySurveyorWhileEditing->apply(['test for comment']);
-//        $t = $flow->mainFlow->jump(MainFlowStates::SENT_BACK_TO_SURVEYOR_FOR_REVISION);
+//        $t = $flow->mainFlow->jump(MainWorkflowStates::SENT_BACK_TO_SURVEYOR_FOR_REVISION);
 
-        dd($flow->mainFlowStatus()->first());
+        dd($flow->currentStatus());
         dd(Context::withWhereHas('mainFlowStatus',
-            fn($query) => $query->where('to', MainFlowStates::CANCELLED_BY_SURVEYOR))->get());
+            fn($query) => $query->where('to', MainWorkflowStates::CANCELLED_BY_SURVEYOR))->get());
 //        dd($flow->mainFlow->currentStatus());
-        dd($flow->mainFlow->jump(MainFlowStates::SENT_BACK_TO_SURVEYOR_FOR_REVISION));
+        dd($flow->mainFlow->jump(MainWorkflowStates::SENT_BACK_TO_SURVEYOR_FOR_REVISION));
 //        spin(message: 'Loading Workflows. Please wait... 🤔', callback: function () {
 // 
 //            $workflows = Workflow::when($this->argument('workflow'),
