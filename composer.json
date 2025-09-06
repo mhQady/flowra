@@ -45,8 +45,7 @@
     }
   },
   "support": {
-    "issues": "https://github.com/mhQady/flowra/issues",
-    "source": "https://github.com/mhQady/flowra"
+    "issues": "https://github.com/mhQady/flowra/issues"
   },
   "prefer-stable": true,
   "minimum-stability": "stable",

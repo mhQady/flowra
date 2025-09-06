@@ -2,6 +2,7 @@
 
 namespace Flowra;
 
+use Composer\InstalledVersions;
 use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Support\ServiceProvider;
 
@@ -9,10 +10,6 @@ class FlowraServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        AboutCommand::add('Flowra', fn() => [
-            'Version' => '0.1.2'
-        ]);
-
         if ($this->app->runningInConsole()) {
             $this->commands([
                 \Flowra\Console\GenerateWorkflow::class,
@@ -33,5 +30,9 @@ class FlowraServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/stubs' => base_path('stubs/flowra'),
         ], 'flowra-stubs');
+
+        AboutCommand::add('Flowra', fn() => [
+            'Version' => InstalledVersions::getPrettyVersion('mhqady/flowra')
+        ]);
     }
 }
