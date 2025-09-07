@@ -11,15 +11,22 @@ use Flowra\Models\Status;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 use UnitEnum;
+use Flowra\Exceptions\GuardDeniedException;
 
 trait CanApplyTransitions
 {
+    use CanEvaluateGuards;
     /**
      * @throws Throwable
      */
     public function apply(Transition $t, ?array $comment = null): static
     {
         $this->__validateTransitionApplicable($t);
+
+        $decision = $this->__evaluateGuards($t);
+
+        if (! $decision->allowed) 
+            throw new GuardDeniedException($decision->message ?? 'Transition denied.');
 
         $this->__save($t, $comment);
 
