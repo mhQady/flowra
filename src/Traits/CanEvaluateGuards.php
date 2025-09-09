@@ -1,37 +1,43 @@
 <?php
 
 namespace Flowra\Traits;
+
 use Flowra\DTOs\Transition;
 use Flowra\Contracts\GuardContract;
 use Flowra\DTOs\GuardDecision;
+use Flowra\Exceptions\GuardDeniedException;
 
 trait CanEvaluateGuards
 {
-  private function __evaluateGuards(Transition $t): GuardDecision
-  {
-    // dd($t->guards());
-    foreach ($t->guards() as $g) {
-      try {
+    private function __evaluateGuards(Transition $t)
+    {
+        // dd($t->guards());
+        foreach ($t->guards() as $g) {
 
-        $instance = $g;
+            try {
 
-        if (is_string($g))
-          $instance = app($g);
+                $instance = $g;
 
-        $res = $instance instanceof GuardContract ? $instance->allow($this, $t) : $instance($this, $t);
-
-        if ($res === false)
-          return GuardDecision::deny();
+                if (is_string($g)) {
+                    $instance = app($g);
+                }
 
 
-        if ($res instanceof GuardDecision && !$res->allowed)
-          return $res;
+                $res = $instance instanceof GuardContract ? $instance->allow($t) : $instance($t);
 
-      } catch (\Throwable $e) {
-        return GuardDecision::deny($e->getMessage(), 'exception');
-      }
+                if ($res === false) {
+                    throw new GuardDeniedException('Transition cannot be applied, Guard denied.');
+                }
+
+
+                if ($res instanceof GuardDecision && !$res->allowed) {
+                    return $res;
+                }
+
+            } catch (\Throwable $e) {
+                throw new GuardDeniedException($e->message ?? 'Transition cannot be applied, Guard denied.');
+            }
+
+        }
     }
-
-    return GuardDecision::allow();
-  }
 }
