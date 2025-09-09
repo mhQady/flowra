@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 
 class MakeGuard extends Command
 {
-    protected $signature = 'flowra:make:guard
+    protected $signature = 'flowra:make-guard
         {name : Guard name, e.g. OnlyOwner}
         {--path=app/Workflows/Guards : Directory where the guard will be created}
         {--namespace=App\\Workflows\\Guards : Namespace for the generated class}
@@ -28,7 +28,7 @@ class MakeGuard extends Command
         // Resolve paths & namespace
         $basePath = base_path(Str::finish($this->option('path'), '/'));       // e.g. app/FlowGuards/
         $namespace = rtrim($this->option('namespace'), '\\');                  // e.g. App\FlowGuards
-        $filename = $basePath . $studly . '.php';
+        $filename = $basePath.$studly.'.php';
         $class = $studly;
 
         // Ensure directory
@@ -41,8 +41,8 @@ class MakeGuard extends Command
 
         // Render
         $rendered = strtr($stub, [
-          '{{ namespace }}' => $namespace,
-          '{{ class }}' => $class,
+            '{{ namespace }}' => $namespace,
+            '{{ class }}' => $class,
         ]);
 
         // Write
@@ -63,7 +63,7 @@ class MakeGuard extends Command
         $name = ltrim($name, '/\\');
 
         // 1) app-published stubs take precedence
-        $appStub = base_path('stubs/flowra/' . $name);
+        $appStub = base_path('stubs/flowra/'.$name);
         if (is_file($appStub)) {
             $data = file_get_contents($appStub);
             if ($data !== false) {
@@ -72,7 +72,7 @@ class MakeGuard extends Command
         }
 
         // 2) package default stub (src/stubs/guard.stub)
-        $packageStub = dirname(__DIR__, 1) . '/stubs/' . $name; // __DIR__ = src/Console
+        $packageStub = dirname(__DIR__, 1).'/stubs/'.$name; // __DIR__ = src/Console
         if (is_file($packageStub)) {
             $data = file_get_contents($packageStub);
             if ($data !== false) {

@@ -2,6 +2,7 @@
 
 namespace Flowra\Console;
 
+use App\Workflows\Guards\OnlyAdminGuard;
 use Flowra\Flows\MainFlow\MainWorkflowStates;
 use Flowra\Models\Context;
 use Illuminate\Console\Command;
@@ -21,7 +22,12 @@ class ListWorkflow extends Command
 
         $flow = Context::query()->firstOrCreate(['id' => 1]);
 
-        $t = $flow->mainWorkflow->fillingOwnerDataTransition->guard(fn ($flow) => false)->apply(['test for comment']);
+        $t = $flow->mainWorkflow->fillingOwnerDataTransition->guard(function (): bool {
+            dump('guard 1 evaluating...');
+            return true;
+        }, new OnlyAdminGuard())->action(fn() => dump('action executing...'))->apply();
+
+        dd('transition applied successfully 🎉');
         //        $t = $flow->mainFlow->jump(MainWorkflowStates::SENT_BACK_TO_SURVEYOR_FOR_REVISION);
 
 

@@ -2,9 +2,9 @@
 
 namespace Flowra\Contracts;
 
-use Illuminate\Database\Eloquent\Model;
+use Flowra\DTOs\Transition;
 
 interface GuardContract
 {
-    public function allows(Model $model, string $transitionKey, array $context = []): bool;
+    public function allows(Transition $transition): bool;
 }

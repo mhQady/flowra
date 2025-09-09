@@ -18,13 +18,14 @@ class BaseWorkflow
     public function __construct(public readonly HasWorkflowContract $model)
     {
         $this->__bindStates();
+
         $this->__bootstrapTransitions();
     }
 
     /** helper to construct a bound transition */
     protected function t(string $key, UnitEnum $from, UnitEnum $to, array $comment = []): Transition
     {
-        return new Transition(key: $key, from: $from, to: $to, workflow: $this, comment: $comment);
+        return new Transition(key: $key, from: $from, to: $to, workflow: $this);
     }
 
     public function status(): ?Status

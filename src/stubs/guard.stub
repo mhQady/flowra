@@ -1,0 +1,15 @@
+<?php
+
+namespace {{ namespace }};
+
+use Flowra\Contracts\GuardContract;
+use Flowra\Flows\BaseWorkflow;
+use Flowra\DTOs\Transition;
+
+class {{ class }} implements GuardContract
+{
+    public function allows(Transition $transition): bool
+    {
+        //
+    }
+}
