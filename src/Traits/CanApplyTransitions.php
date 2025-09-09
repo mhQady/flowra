@@ -14,14 +14,28 @@ use UnitEnum;
 
 trait CanApplyTransitions
 {
+    use CanEvaluateGuards, CanExecuteActions;
+
     /**
      * @throws Throwable
      */
     public function apply(Transition $t, ?array $comment = null): static
     {
-        $this->__validateTransitionApplicable($t);
+        dump('guard start evaluation 🏁');
+        $this->__evaluateGuards($t);
+        dump('guard ends evaluation ⚰');
 
-        $this->__save($t, $comment);
+        dump('validation started 🏁');
+        $this->__validateTransitionApplicable($t);
+        dump('validation ended ⚰');
+
+        dump('saving started 🏁');
+//        $this->__save($t, $comment);
+        dump('saving ended ⚰');
+
+        dump('running actions started 🏁');
+        $this->run($t);
+        dump('running actions ended ⚰');
 
         return $this;
     }
@@ -50,33 +64,41 @@ trait CanApplyTransitions
     {
         DB::transaction(function () use ($t, $comment) {
 
-            if ($comment) {
-                $t->comment = $comment;
-            }
+//            if ($comment) {
+//                $t->comment = $comment;
+//            }
 
             $this->__saveStatus($t);
 
             $this->__appendToRegistry($t);
+
         });
     }
 
     private function __validateTransitionApplicable(Transition $t): void
     {
-        // chack if model really exists in database
-        if (!$this->model->exists)
+        # chack if model really exists in database #
+        if (!$this->model->exists) {
             throw new ApplyTransitionException("Model that apply transition does not exist");
+        }
 
-        // check if workflow is registered for model
-        if (!isset($this->model->workflows) || !in_array(static::class, $this->model->workflows))
+        # check if workflow is registered for model #
+        if (!isset($this->model->workflows) || !in_array(static::class, $this->model->workflows)) {
             throw new ApplyTransitionException('Workflow ('.$this::class.') is not registered for model ('.$this->model::class.')');
+        }
 
-        // check if transition is already defined in workflow
-        if (!in_array($t, array_values($this->transitions)))
-            throw new ApplyTransitionException('Transition ('.$t->key.') is not defined for workflow ('.$this::class.')');
+        # check if transition is already defined in workflow #
+        if (!in_array($t, array_values($this->transitions))) {
+            throw new ApplyTransitionException('Transition <comment>('.$t->key.')</comment> is not defined for workflow <comment>('.$this::class.')</comment>');
+        }
 
-        // determine current (if not started, you may treat "from" as the expected initial)
-        if (($current = $this->currentStatus()?->value ?? $t->from->value) !== $t->from->value)
-            throw new ApplyTransitionException("Applying transition ({$t->key}) while current state is ({$current}) is not applicable, current state must be ({$t->from->value}).");
+        # determine current (if not started, you may treat "from" as the expected initial) #
+        if (($current = $this->currentStatus()?->value ?? $t->from->value) !== $t->from->value) {
+            throw new ApplyTransitionException(
+                "Applying transition <comment>({$t->key})</comment> while current state is <comment>({$current})</comment> is not applicable.
+                                                \n  Model state must be <comment>({$t->from->value})</comment> so transition can be applied."
+            );
+        }
 
     }
 
@@ -87,14 +109,17 @@ trait CanApplyTransitions
      */
     private function __validateJumpApplicable(UnitEnum|int|string $state): array
     {
-        if (!($state instanceof UnitEnum))
+        if (!($state instanceof UnitEnum)) {
             $state = $this->statesClass::tryFrom($state);
+        }
 
-        if (!($state instanceof $this->statesClass))
+        if (!($state instanceof $this->statesClass)) {
             throw new ApplyResetException('State is not valid, state must be of type ('.$this->statesClass::class.')');
+        }
 
-        if (!($fromStatus = $this->currentStatus()))
+        if (!($fromStatus = $this->currentStatus())) {
             throw new ApplyResetException('From state is not valid, state must not be (<fg=yellow;options=bold>null</>) on jump');
+        }
 
         return [$state, $fromStatus];
     }
@@ -115,7 +140,7 @@ trait CanApplyTransitions
                 'transition' => $t->key,
                 'from' => $t->from,
                 'to' => $t->to,
-                'comment' => $t->comment,
+//                'comment' => $t->comment,
                 // 'applied_by' => $t->appliedBy,
                 'type' => $t->type
             ]
@@ -136,7 +161,7 @@ trait CanApplyTransitions
             'transition' => $t->key,
             'from' => $t->from,
             'to' => $t->to,
-            'comment' => $t->comment,
+//            'comment' => $t->comment,
             // 'applied_by' => $t->appliedBy,
             'type' => $t->type
         ]);

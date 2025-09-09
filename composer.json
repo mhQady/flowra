@@ -70,7 +70,7 @@
       "@php vendor/bin/testbench serve --ansi"
     ],
     "test": "vendor/bin/pest --colors=always",
-    "art": "vendor/bin/testbench"
+    "art": "vendor/bin/testbench --ansi"
   },
   "config": {
     "allow-plugins": {
