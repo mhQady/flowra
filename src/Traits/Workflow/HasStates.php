@@ -1,6 +1,6 @@
 <?php
 
-namespace Flowra\Traits;
+namespace Flowra\Traits\Workflow;
 
 trait HasStates
 {

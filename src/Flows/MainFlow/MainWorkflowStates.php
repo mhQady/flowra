@@ -3,7 +3,7 @@
 namespace Flowra\Flows\MainFlow;
 
 
-use Flowra\Traits\BaseEnum;
+use Flowra\Enums\BaseEnum;
 
 enum MainWorkflowStates: string
 {

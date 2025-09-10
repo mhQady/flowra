@@ -3,8 +3,8 @@
 namespace Flowra\Flows\MainFlow;
 
 use Flowra\Attributes\TransitionMeta;
+use Flowra\BaseWorkflow;
 use Flowra\DTOs\Transition;
-use Flowra\Flows\BaseWorkflow;
 
 class MainWorkflow extends BaseWorkflow
 {

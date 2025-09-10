@@ -1,13 +1,11 @@
 <?php
 
-namespace Flowra\Flows;
+namespace Flowra;
 
 use Flowra\Contracts\HasWorkflowContract;
 use Flowra\DTOs\Transition;
-use Flowra\Models\Registry;
-use Flowra\Models\Status;
-use Flowra\Traits\HasStates;
-use Flowra\Traits\HasTransitions;
+use Flowra\Models\{Registry, Status};
+use Flowra\Traits\Workflow\{HasStates, HasTransitions};
 use Illuminate\Database\Eloquent\Collection;
 use UnitEnum;
 

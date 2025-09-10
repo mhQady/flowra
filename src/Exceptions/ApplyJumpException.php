@@ -4,6 +4,6 @@ namespace Flowra\Exceptions;
 
 use RuntimeException;
 
-class ApplyResetException extends RuntimeException
+class ApplyJumpException extends RuntimeException
 {
 }

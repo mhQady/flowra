@@ -1,19 +1,16 @@
 <?php
 
-namespace Flowra\Traits;
+namespace Flowra\Traits\Workflow;
 
 use Flowra\Contracts\GuardContract;
-use Flowra\DTOs\GuardDecision;
 use Flowra\DTOs\Transition;
 use Flowra\Exceptions\GuardDeniedException;
 
 trait CanEvaluateGuards
 {
-    private function __evaluateGuards(Transition $t)
+    private function __evaluateGuards(Transition $t): void
     {
         foreach ($t->guards() as $g) {
-
-//            try {
 
             $instance = $g;
 
@@ -27,15 +24,6 @@ trait CanEvaluateGuards
             if ($res === false) {
                 throw new GuardDeniedException('Transition cannot be applied, Guard denied.');
             }
-
-
-            if ($res instanceof GuardDecision && !$res->allowed) {
-                return $res;
-            }
-//
-//            } catch (\Throwable $e) {
-//                throw new GuardDeniedException($e->message ?? 'Transition cannot be applied, Guard denied.');
-//            }
 
         }
     }

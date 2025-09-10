@@ -1,10 +1,10 @@
 <?php
 
-namespace Flowra\Traits;
+namespace Flowra\Traits\Workflow;
 
 use Flowra\DTOs\Jump;
 use Flowra\DTOs\Transition;
-use Flowra\Exceptions\ApplyResetException;
+use Flowra\Exceptions\ApplyJumpException;
 use Flowra\Exceptions\ApplyTransitionException;
 use Flowra\Models\Registry;
 use Flowra\Models\Status;
@@ -106,11 +106,11 @@ trait CanApplyTransitions
         }
 
         if (!($state instanceof $this->statesClass)) {
-            throw new ApplyResetException('State is not valid, state must be of type ('.$this->statesClass::class.')');
+            throw new ApplyJumpException('State is not valid, state must be of type ('.$this->statesClass::class.')');
         }
 
         if (!($fromStatus = $this->currentStatus())) {
-            throw new ApplyResetException('From state is not valid, state must not be (<fg=yellow;options=bold>null</>) on jump');
+            throw new ApplyJumpException('From state is not valid, state must not be (<fg=yellow;options=bold>null</>) on jump');
         }
 
         return [$state, $fromStatus];
