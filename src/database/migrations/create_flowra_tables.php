@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create(config('flowra.tables.statuses'), function (Blueprint $table) {
+        Schema::create(config('flowra.tables.statuses', 'statuses'), function (Blueprint $table) {
             $table->id();
             $table->morphs('owner');
             $table->string('workflow');
@@ -21,7 +21,7 @@ return new class extends Migration {
             $table->timestamps();
         });
 
-        Schema::create(config('flowra.tables.registry'), function (Blueprint $table) {
+        Schema::create(config('flowra.tables.registry', 'statuses_registry'), function (Blueprint $table) {
             $table->id();
             $table->morphs('owner');
             $table->string('workflow');

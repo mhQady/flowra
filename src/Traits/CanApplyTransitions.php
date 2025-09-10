@@ -21,21 +21,13 @@ trait CanApplyTransitions
      */
     public function apply(Transition $t, ?array $comment = null): static
     {
-        dump('guard start evaluation 🏁');
         $this->__evaluateGuards($t);
-        dump('guard ends evaluation ⚰');
 
-        dump('validation started 🏁');
         $this->__validateTransitionApplicable($t);
-        dump('validation ended ⚰');
 
-        dump('saving started 🏁');
-//        $this->__save($t, $comment);
-        dump('saving ended ⚰');
+        $this->__save($t, $comment);
 
-        dump('running actions started 🏁');
-        $this->run($t);
-        dump('running actions ended ⚰');
+        $this->__executeActions($t);
 
         return $this;
     }

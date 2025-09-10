@@ -10,7 +10,7 @@ class {{ class }} extends BaseWorkflow
 {
     // Example initial self-transition (adjust/remove as you wish)
     #[TransitionMeta(title: '{{ flow_title }} / Init')]
-    public function initiating(): Transition
+    public function initiatingTransition(): Transition
     {
         return $this->t(
             key: 'initiating',
