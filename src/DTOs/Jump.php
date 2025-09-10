@@ -2,8 +2,8 @@
 
 namespace Flowra\DTOs;
 
+use Flowra\BaseWorkflow;
 use Flowra\Enums\TransitionTypesEnum;
-use Flowra\Flows\BaseWorkflow;
 use UnitEnum;
 
 class Jump extends Transition

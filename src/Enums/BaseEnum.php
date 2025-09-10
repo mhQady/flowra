@@ -1,6 +1,6 @@
 <?php
 
-namespace Flowra\Traits;
+namespace Flowra\Enums;
 
 use Throwable;
 

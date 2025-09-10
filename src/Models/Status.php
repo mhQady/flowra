@@ -7,9 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 
-/**
- * @property string $to
- */
 class Status extends Model
 {
     protected $guarded = ['id'];

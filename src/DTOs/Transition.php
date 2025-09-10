@@ -3,10 +3,10 @@
 namespace Flowra\DTOs;
 
 use Closure;
+use Flowra\BaseWorkflow;
 use Flowra\Contracts\ActionContract;
 use Flowra\Contracts\GuardContract;
 use Flowra\Enums\TransitionTypesEnum;
-use Flowra\Flows\BaseWorkflow;
 use Throwable;
 use UnitEnum;
 

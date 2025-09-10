@@ -2,8 +2,8 @@
 
 namespace Flowra\Traits;
 
+use Flowra\BaseWorkflow;
 use Flowra\DTOs\Transition;
-use Flowra\Flows\BaseWorkflow;
 use Throwable;
 
 trait HasWorkflow

@@ -1,6 +1,6 @@
 <?php
 
-namespace Flowra\Traits;
+namespace Flowra\Traits\Workflow;
 
 use Flowra\Contracts\ActionContract;
 use Flowra\DTOs\Transition;
@@ -18,7 +18,7 @@ trait CanExecuteActions
             }
 
             $instance instanceof ActionContract ? $instance->execute($t) : $instance($t);
-            
+
         }
     }
 }
