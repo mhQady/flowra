@@ -8,6 +8,8 @@ trait HasStates
 
     private function __bindStates(): void
     {
+        if (isset($this->statesClass)) return;
+
         $statesClass = static::class.'States';
 
         if (class_exists($statesClass))
