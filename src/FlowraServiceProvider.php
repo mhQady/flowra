@@ -12,9 +12,10 @@ class FlowraServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->commands([
-                \Flowra\Console\GenerateWorkflow::class,
-                \Flowra\Console\ListWorkflow::class,
+                \Flowra\Console\MakeWorkflow::class,
                 \Flowra\Console\MakeGuard::class,
+                \Flowra\Console\MakeAction::class,
+                \Flowra\Console\ListWorkflow::class,
             ]);
         }
 
@@ -32,7 +33,7 @@ class FlowraServiceProvider extends ServiceProvider
             __DIR__.'/stubs' => base_path('stubs/flowra'),
         ], 'flowra-stubs');
 
-        AboutCommand::add('Flowra', fn () => [
+        AboutCommand::add('Flowra', fn() => [
             'Version' => InstalledVersions::getPrettyVersion('mhqady/flowra')
         ]);
     }

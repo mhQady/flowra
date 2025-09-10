@@ -19,7 +19,11 @@ trait HasWorkflowRelations
 
     private static function __registerWorkflowsRelations(): void
     {
-        foreach ((new static)->workflows as $workflowClass) {
+        $model = (new static);
+
+        $workflows = property_exists($model, 'workflows') ? $model->workflows : [];
+
+        foreach ($workflows as $workflowClass) {
 
             $alias = Str::camel(class_basename($workflowClass));
 

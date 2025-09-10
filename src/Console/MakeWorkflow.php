@@ -7,9 +7,9 @@ use Illuminate\Filesystem\Filesystem;
 use RuntimeException;
 use Str;
 
-class GenerateWorkflow extends Command
+class MakeWorkflow extends Command
 {
-    protected $signature = 'flowra:generate
+    protected $signature = 'flowra:make-workflow
         {name : Workflow name, e.g. Main}
         {--path=app/Workflows : Base directory where the workflow folder will be created}
         {--namespace=App\\Workflows : Root namespace for generated classes}
