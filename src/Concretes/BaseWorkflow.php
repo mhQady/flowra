@@ -1,29 +1,35 @@
 <?php
 
-namespace Flowra;
+namespace Flowra\Concretes;
 
 use Flowra\Contracts\HasWorkflowContract;
-use Flowra\DTOs\Transition;
 use Flowra\Models\{Registry, Status};
-use Flowra\Traits\Workflow\{HasStates, HasTransitions};
+use Flowra\Traits\Support\Bootable;
+use Flowra\Traits\Workflow\{HasStates, HasSubflow, HasTransitions};
 use Illuminate\Database\Eloquent\Collection;
-use UnitEnum;
+use Str;
 
+/**
+ * @todo
+ * An inner flow allows a single state in your main workflow to trigger and manage another, separate workflow (the inner flow).
+ * The parent workflow usually waits until the inner flow completes (reaches a terminal state), then resumes its own transitions.
+ */
 class BaseWorkflow
 {
-    use HasStates, HasTransitions;
+    use Bootable, HasStates, HasTransitions, HasSubflow;
 
     public function __construct(public readonly HasWorkflowContract $model)
     {
-        $this->__bindStates();
+        static::bootIfNotBooted();
 
-        $this->__bootstrapTransitions();
+        $this->initializeTraits();
+
+//        $this->bindSubflows();
     }
 
-    /** helper to construct a bound transition */
-    protected function t(string $key, UnitEnum $from, UnitEnum $to, array $comment = []): Transition
+    public static function transitionSchema(): array
     {
-        return new Transition(key: $key, from: $from, to: $to, workflow: $this);
+        return [];
     }
 
     public function status(): ?Status
@@ -33,11 +39,6 @@ class BaseWorkflow
             ->where('owner_id', $this->model->getKey())
             ->where('workflow', $this::class)
             ->first();
-    }
-
-    public function currentStatus(): ?UnitEnum
-    {
-        return $this->statesClass::tryFrom($this->status()?->to);
     }
 
     public function registry(): Collection
@@ -53,6 +54,10 @@ class BaseWorkflow
     {
         if ($t = $this->__accessCachedTransitionAsProperty($name))
             return $t;
+
+        $innerName = Str::snake($name);
+        if (isset($this->innerWorkflows[$innerName]))
+            return $this->innerWorkflows[$innerName];
 
         return null;
     }

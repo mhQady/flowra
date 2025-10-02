@@ -10,6 +10,7 @@ enum MainWorkflowStates: string
     use BaseEnum;
 
     case INIT = 'init';
+    case DRAFT = 'draft';
     case PREPARE_APPLICATION_INFO = 'prepare_application_info';
     case CANCELLED_BY_SURVEYOR = 'cancelled_by_surveyor';
     case WAITING_ENGOFFICE_CREDENCE = 'waiting_engoffice_credence';
@@ -23,9 +24,4 @@ enum MainWorkflowStates: string
     case SENT_BACK_TO_AUDITOR_FOR_REVISION = 'sent_back_to_auditor_for_revision';
     case WAITING_FOR_INVOICE_PAYMENT = 'waiting_for_invoice_payment';
     case SENT_BACK_TO_PROCESSOR_FOR_REVISION = 'sent_back_to_processor_for_revision';
-    case OWNER_INFO_ENTERED = 'owner_info_entered';
-    case CERTIFICATES_INFO_ENTERED = 'certificates_info_entered';
-    case BUILDINGS_INFO_ENTERED = 'buildings_info_entered';
-    case INSPECTION_REPORT_INFO_ENTERED = 'inspection_report_info_entered';
-
 }

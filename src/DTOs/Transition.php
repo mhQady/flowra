@@ -3,33 +3,37 @@
 namespace Flowra\DTOs;
 
 use Closure;
-use Flowra\BaseWorkflow;
+use Flowra\Concretes\BaseWorkflow;
 use Flowra\Contracts\ActionContract;
 use Flowra\Contracts\GuardContract;
 use Flowra\Enums\TransitionTypesEnum;
 use Throwable;
 use UnitEnum;
 
-class Transition
+class Transition implements \JsonSerializable
 {
-
     /**
      * @param $guards  array<Closure|GuardContract|class-string<GuardContract>>
      */
     private array $guards = [];
     private array $actions = [];
-
     private array $comments = [];
+
+    private readonly BaseWorkflow $workflow;
 
     public function __construct(
         public readonly string $key,
         public readonly UnitEnum $from,
         public readonly UnitEnum $to,
-        public readonly BaseWorkflow $workflow,
         public ?int $appliedBy = null,  // optional user id
         public int $type = TransitionTypesEnum::TRANSITION->value
     ) {
 
+    }
+
+    public static function make(string $key, UnitEnum $from, UnitEnum $to): static
+    {
+        return new static($key, $from, $to);
     }
 
     /**
@@ -75,6 +79,13 @@ class Transition
         return $this;
     }
 
+    public function workflow(BaseWorkflow $workflow): void
+    {
+        if (empty($this->workflow)) {
+            $this->workflow = $workflow;
+        }
+    }
+
     /**
      * @throws Throwable
      */
@@ -91,5 +102,14 @@ class Transition
     public function actions(): array
     {
         return $this->actions;
+    }
+
+    public function jsonSerialize(): array
+    {
+        return [
+            'key' => $this->key,
+            'from' => $this->from,
+            'to' => $this->to,
+        ];
     }
 }

@@ -3,18 +3,20 @@
 namespace Flowra\Flows\MainFlow;
 
 use Flowra\Attributes\TransitionMeta;
-use Flowra\BaseWorkflow;
-use Flowra\DTOs\Transition;
+use Flowra\Concretes\BaseWorkflow;
+use Flowra\Contracts\HasSubflowContract;
+use Flowra\DTOs\{Subflow, Transition};
+use Flowra\Flows\FillAppDataWorkflow\{FillAppDataWorkflow, FillAppDataWorkflowStates};
 
-class MainWorkflow extends BaseWorkflow
+class MainWorkflow extends BaseWorkflow implements HasSubflowContract
 {
-    #[TransitionMeta(title: 'إدخال بيانات ملكية العقار / Filling Owner Data')]
-    public function fillingOwnerDataTransition(): Transition
+    #[TransitionMeta(title: 'الإرسال لإعتماد المكتب الهندسي / Sending for EngOffice Credence')]
+    public function draftingTransition(): Transition
     {
         return $this->t(
-            key: 'filling_owner_data',
+            key: 'sending_for_engoffice_credence',
             from: MainWorkflowStates::INIT,
-            to: MainWorkflowStates::OWNER_INFO_ENTERED,
+            to: MainWorkflowStates::DRAFT,
         );
     }
 
@@ -23,13 +25,13 @@ class MainWorkflow extends BaseWorkflow
     {
         return $this->t(
             key: 'sending_for_engoffice_credence',
-            from: MainWorkflowStates::INSPECTION_REPORT_INFO_ENTERED,
+            from: MainWorkflowStates::DRAFT,
             to: MainWorkflowStates::WAITING_ENGOFFICE_CREDENCE,
         );
     }
 
     #[TransitionMeta(title: 'قيد الإلغاء من قبل المساح / Cancelling by Surveyor')]
-    public function cancellingBySurveyorWhileCreating(): Transition
+    public function cancellingBySurveyorWhileCreatingTransition(): Transition
     {
         return $this->t(
             key: 'cancelling_by_surveyor_while_creating',
@@ -49,7 +51,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'الإرسال للتدقيق / Sending for Auditing')]
-    public function sendingForAuditing(): Transition
+    public function sendingForAuditingTransition(): Transition
     {
         return $this->t(
             key: 'sending_for_auditing',
@@ -59,7 +61,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'قيد الإلغاء من قبل المكتب الهندسي / Cancelling by EngOffice')]
-    public function cancellingByEngoffice(): Transition
+    public function cancellingByEngofficeTransition(): Transition
     {
         return $this->t(
             key: 'cancelling_by_engoOffice',
@@ -69,7 +71,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'الإرسال من المكتب الهندسي للمساح للمراجعة / EngOffice Send Back To Surveyor For Revision')]
-    public function engofficeSendBackToSurveyorForRevision(): Transition
+    public function engofficeSendBackToSurveyorForRevisionTransition(): Transition
     {
         return $this->t(
             key: 'engoffice_send_back_to_surveyor_for_revision',
@@ -79,7 +81,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'التعيين للمدقق / Assigning to Auditor')]
-    public function assigningToAuditor(): Transition
+    public function assigningToAuditorTransition(): Transition
     {
         return $this->t(
             key: 'assigning_to_auditor',
@@ -89,7 +91,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'الإرسال للمعالجة / Sending for Processing')]
-    public function sendingForProcessing(): Transition
+    public function sendingForProcessingTransition(): Transition
     {
         return $this->t(
             key: 'sending_for_processing',
@@ -99,7 +101,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'الإرسال للمعالجة / Sending for Processing (to active processor)')]
-    public function sendingForProcessingToActiveProcessor(): Transition
+    public function sendingForProcessingToActiveProcessorTransition(): Transition
     {
         return $this->t(
             key: 'sending_for_processing_to_active_processor',
@@ -109,7 +111,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'قيد التدقيق / Under auditing (send to active auditor)')]
-    public function sendingForAuditToActiveAuditor(): Transition
+    public function sendingForAuditToActiveAuditorTransition(): Transition
     {
         return $this->t(
             key: 'sending_for_audit_to_active_auditor',
@@ -119,7 +121,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'الإرسال من المدقق للمساح للمراجعة / Auditor Send Back To Surveyor For Revision')]
-    public function auditorSendBackToSurveyorForRevision(): Transition
+    public function auditorSendBackToSurveyorForRevisionTransition(): Transition
     {
         return $this->t(
             key: 'auditor_send_back_to_surveyor_for_revision',
@@ -129,7 +131,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'الإسناد الى معالج / Assigning to Processor')]
-    public function assigningToProcessor(): Transition
+    public function assigningToProcessorTransition(): Transition
     {
         return $this->t(
             key: 'assigning_to_processor',
@@ -139,7 +141,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'الإرسال لمراجعة مدير العمليات / Sending for Operations Manager Revision')]
-    public function sendingForOperationsManagerRevision(): Transition
+    public function sendingForOperationsManagerRevisionTransition(): Transition
     {
         return $this->t(
             key: 'sending_for_operations_manager_revision',
@@ -149,7 +151,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'الإرسال من المعالج للمساح للمراجعة / Processor Send Back To Surveyor For Revision')]
-    public function processorSendBackToSurveyorForRevision(): Transition
+    public function processorSendBackToSurveyorForRevisionTransition(): Transition
     {
         return $this->t(
             key: 'processor_send_back_to_surveyor_for_revision',
@@ -159,7 +161,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'الإرسال من المعالج للمدقق للمراجعة / Processor Send Back To Auditor For Revision')]
-    public function processorSendBackToAuditorForRevision(): Transition
+    public function processorSendBackToAuditorForRevisionTransition(): Transition
     {
         return $this->t(
             key: 'processor_send_back_to_auditor_for_revision',
@@ -169,7 +171,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'إصدار فاتورة / Issuing Invoice')]
-    public function issuingInvoice(): Transition
+    public function issuingInvoiceTransition(): Transition
     {
         return $this->t(
             key: 'issuing_invoice',
@@ -179,7 +181,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'الإرسال من مدير العمليات للمساح للمراجعة / Operations Manager Send Back To Surveyor For Revision')]
-    public function operationsManagerSendBackToSurveyorForRevision(): Transition
+    public function operationsManagerSendBackToSurveyorForRevisionTransition(): Transition
     {
         return $this->t(
             key: 'operations_manager_send_back_to_surveyor_for_revision',
@@ -189,7 +191,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'الإرسال من مدير العمليات للمدقق للمراجعة / Operations Manager Send Back To Auditor For Revision')]
-    public function operationsManagerSendBackToAuditorForRevision(): Transition
+    public function operationsManagerSendBackToAuditorForRevisionTransition(): Transition
     {
         return $this->t(
             key: 'operations_manager_send_back_to_auditor_for_revision',
@@ -199,7 +201,7 @@ class MainWorkflow extends BaseWorkflow
     }
 
     #[TransitionMeta(title: 'الإرسال من مدير العمليات للمعالج للمراجعة / Operations Manager Send Back To Processor For Revision')]
-    public function operationsManagerSendBackToProcessorForRevision(): Transition
+    public function operationsManagerSendBackToProcessorForRevisionTransition(): Transition
     {
         return $this->t(
             key: 'operations_manager_send_back_to_processor_for_revision',
@@ -208,33 +210,15 @@ class MainWorkflow extends BaseWorkflow
         );
     }
 
-    #[TransitionMeta(title: 'إدخال بيانات الرخص والشهادات / Filling Certificates Data')]
-    public function fillingCertificatesData(): Transition
-    {
-        return $this->t(
-            key: 'filling_certificates_data',
-            from: MainWorkflowStates::OWNER_INFO_ENTERED,
-            to: MainWorkflowStates::CERTIFICATES_INFO_ENTERED,
-        );
-    }
 
-    #[TransitionMeta(title: 'إدخال بيانات المباني / Filling Buildings Data')]
-    public function fillingBuildingsData(): Transition
+    public function defineSubflows(): array
     {
-        return $this->t(
-            key: 'filling_buildings_data',
-            from: MainWorkflowStates::CERTIFICATES_INFO_ENTERED,
-            to: MainWorkflowStates::BUILDINGS_INFO_ENTERED,
-        );
-    }
-
-    #[TransitionMeta(title: 'إدخال بيانات تقرير معاينة العقار / Filling Inspection Report Data')]
-    public function fillingInspectionReportData(): Transition
-    {
-        return $this->t(
-            key: 'filling_inspection_report_data',
-            from: MainWorkflowStates::BUILDINGS_INFO_ENTERED,
-            to: MainWorkflowStates::INSPECTION_REPORT_INFO_ENTERED,
-        );
+        return [
+            Subflow::define()->bind(MainWorkflowStates::DRAFT)
+                ->to(FillAppDataWorkflow::class)
+                ->start('fillingOwnerData')
+                ->exit(FillAppDataWorkflowStates::SENT, 'sendingForEngofficeCredence')
+                ->make(),
+        ];
     }
 }

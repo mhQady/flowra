@@ -2,7 +2,7 @@
 
 namespace Flowra\DTOs;
 
-use Flowra\BaseWorkflow;
+use Flowra\Concretes\BaseWorkflow;
 use Flowra\Enums\TransitionTypesEnum;
 use UnitEnum;
 

@@ -18,7 +18,6 @@ trait CanEvaluateGuards
                 $instance = app($g);
             }
 
-
             $res = $instance instanceof GuardContract ? $instance->allows($t) : $instance($t);
 
             if ($res === false) {

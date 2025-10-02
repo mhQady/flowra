@@ -4,8 +4,8 @@ namespace Flowra\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-
 
 class Status extends Model
 {
@@ -17,9 +17,24 @@ class Status extends Model
         parent::__construct($attributes);
     }
 
+    protected function casts(): array
+    {
+        return [
+            'depth' => 'int'
+        ];
+    }
+
     public function owner(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(Status::class, 'bound_state', 'to')
+            ->whereColumn(
+                'child.parent_workflow', 'parent.workflow_key'
+            );
     }
 
     protected function comment(): Attribute

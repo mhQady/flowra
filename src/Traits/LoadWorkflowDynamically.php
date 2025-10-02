@@ -2,6 +2,7 @@
 
 namespace Flowra\Traits;
 
+use App;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\Str;
 
@@ -19,6 +20,10 @@ trait   LoadWorkflowDynamically
     /** Reverse lookup: from property name to class, or null if not a workflow prop */
     private function __workflowClassForProperty(string $prop): ?string
     {
+//        dd(array_find(
+//            $this->__appliedWorkflows(),
+//            fn($class) => Str::of(class_basename($class))->camel()->toString() === Str::of($prop)->camel()->toString()
+//        ));
         return array_find(
             $this->__appliedWorkflows(),
             fn($class) => Str::of(class_basename($class))->camel()->toString() === Str::of($prop)->camel()->toString()
@@ -28,9 +33,9 @@ trait   LoadWorkflowDynamically
     /** Lazily make (and cache) an instance of the workflow class.
      * @throws BindingResolutionException
      */
-    private function __makeWorkflow(string $class): object
+    private function __initiateWorkflow(string $class): object
     {
-        return $this->workflowInstances[$class] ??= app()->make($class, ['model' => $this]);
+        return $this->workflowInstances[$class] ??= App::make($class, ['model' => $this]);
     }
 
     /**
@@ -56,12 +61,12 @@ trait   LoadWorkflowDynamically
         }
 
         if ($class = $this->__workflowClassForProperty($key)) {
-            return $this->__makeWorkflow($class);
+            return $this->__initiateWorkflow($class);
         }
 
         return $value;
     }
-    
+
     public function __isset($key): bool
     {
         if ($class = $this->__workflowClassForProperty($key)) {

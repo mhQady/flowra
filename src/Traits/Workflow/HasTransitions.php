@@ -4,53 +4,40 @@ namespace Flowra\Traits\Workflow;
 
 use Flowra\DTOs\Transition;
 use Illuminate\Support\Str;
-use Throwable;
 
 trait HasTransitions
 {
     use CanApplyTransitions;
 
-    /** Discover methods with this suffix */
-    protected const string TRANSITION_SUFFIX = 'Transition';
-    public array $transitions = [];
+    private static array $transitions = [];
 
-    private function __bootstrapTransitions(): void
+    public static function bootHasTransitions(): void
     {
-        foreach (get_class_methods(static::class) as $m) {
-
-            //check valid function name
-            if (!str_ends_with(ucfirst($m), 'Transition'))
-                continue;
-
-            $base = Str::of($m)->beforeLast(static::TRANSITION_SUFFIX)->snake()->toString();
-
-            if ($base === '')
-                continue;
-
-            //check valid function value
-            if (!\is_callable([$this, $m]))
-                continue;
-
-            try {
-                $t = $this->{$m}();
-            } catch (Throwable $e) {
-                continue;
-            }
-
+        foreach (static::transitionSchema() as $t) {
             if (!$t instanceof Transition)
                 continue;
 
-//            $t->key ??= $key;
-            $this->transitions[$base] = $t;
+            static::$transitions[static::class][$t->key] = $t;
         }
+    }
+
+    public static function transitions(): array
+    {
+        static::bootIfNotBooted();
+
+        if (!isset(static::$transitions[static::class]))
+            return [];
+
+        return static::$transitions[static::class];
     }
 
     protected function __accessCachedTransitionAsProperty(string $name): ?Transition
     {
-        $name = Str::of($name)->beforeLast(static::TRANSITION_SUFFIX)->snake()->toString();
-
-        if (key_exists($name, $this->transitions)) {
-            return $this->transitions[$name];
+        $name = Str::of($name)->snake()->toString();
+        if (in_array($name, array_keys(static::$transitions[static::class]))) {
+            $t = self::$transitions[static::class][$name];
+            $t->workflow($this);
+            return $t;
         }
 
         return null;
