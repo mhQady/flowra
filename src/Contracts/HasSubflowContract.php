@@ -4,5 +4,5 @@ namespace Flowra\Contracts;
 
 interface HasSubflowContract
 {
-    public function defineSubflows(): array;
+    public static function subflowsSchema(): array;
 }

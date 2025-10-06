@@ -9,11 +9,17 @@ use UnitEnum;
 
 trait HasWorkflowScopes
 {
+
+    protected static function bootHasWorkflowScopes(): void
+    {
+        static::registerScopesMacros();
+    }
+
     /**
      * Filter by current status (IN list) for a given flow (alias or FQCN).
      *
      * @param  Builder  $query
-     * @param  string|class-string  $flow  e.g. 'mainFlow' or \Flowra\Flows\MainWorkflow\MainWorkflow::class
+     * @param  string|class-string  $workflow  e.g. 'mainFlow' or \Flowra\Flows\MainWorkflow\MainWorkflow::class
      * @param  string|UnitEnum|array<string|UnitEnum>  $states  single or array; enums allowed
      * @return Builder
      */
@@ -21,24 +27,45 @@ trait HasWorkflowScopes
     {
         [$relation, $in] = $this->normalizeWorkflowAndStates($workflow, $states);
 
-        return $query->whereHas($relation, fn($q) => $q->whereIn('state', $in));
+        return $query->whereHas($relation, fn($q) => $q->whereIn('to', $in));
     }
 
+    /**
+     * OR filter by current status (IN list) for a given flow (alias or FQCN).
+     *
+     * @param  Builder  $query
+     * @param  string|class-string  $workflow  e.g. 'mainFlow' or \Flowra\Flows\MainWorkflow\MainWorkflow::class
+     * @param  string|UnitEnum|array<string|UnitEnum>  $states  single or array; enums allowed
+     * @return Builder
+     */
     public function scopeOrWhereCurrentStatus(Builder $query, string $workflow, string|UnitEnum|array $states): Builder
     {
         return $query->orWhere(fn($q) => $this->scopeWhereCurrentStatus($q, $workflow, $states));
     }
 
     /**
-     * Exclude rows whose current status (for a flow) is in given list.
+     * Exclude rows whose current status (for a workflow) is in given list.
+     *
+     * @param  Builder  $query
+     * @param  string|class-string  $workflow  e.g. 'mainFlow' or \Flowra\Flows\MainWorkflow\MainWorkflow::class
+     * @param  string|UnitEnum|array<string|UnitEnum>  $states  single or array; enums allowed
+     * @return Builder
      */
     public function scopeWhereNotCurrentStatus(Builder $query, string $workflow, string|UnitEnum|array $states): Builder
     {
         [$relation, $in] = $this->normalizeWorkflowAndStates($workflow, $states);
 
-        return $query->whereDoesntHave($relation, fn($q) => $q->whereIn('state', $in));
+        return $query->whereDoesntHave($relation, fn($q) => $q->whereIn('to', $in));
     }
 
+    /**
+     * OR exclude rows whose current status (for a workflow) is in given list.
+     *
+     * @param  Builder  $query
+     * @param  string|class-string  $workflow  e.g. 'mainFlow' or \Flowra\Flows\MainWorkflow\MainWorkflow::class
+     * @param  string|UnitEnum|array<string|UnitEnum>  $states  single or array; enums allowed
+     * @return Builder
+     */
     public function scopeOrWhereNotCurrentStatus(
         Builder $query,
         string $workflow,
@@ -50,6 +77,11 @@ trait HasWorkflowScopes
     /**
      * Eager-load the flow's status but only if it matches given states.
      * (Does not filter the parent rows; just constrains the relation.)
+     *
+     * @param  Builder  $query
+     * @param  string|class-string  $workflow  e.g. 'mainFlow' or \Flowra\Flows\MainWorkflow\MainWorkflow::class
+     * @param  string|UnitEnum|array<string|UnitEnum>  $states  single or array; enums allowed
+     * @return Builder
      */
     public function scopeWithWhereCurrentStatus(
         Builder $query,
@@ -57,25 +89,49 @@ trait HasWorkflowScopes
         string|UnitEnum|array $states
     ): Builder {
         [$relation, $in] = $this->normalizeWorkflowAndStates($workflow, $states);
+        return $query->with([$relation => fn($q) => $q->whereIn('to', $in)]);
+    }
 
-        return $query->with([$relation => fn($q) => $q->whereIn('state', $in)]);
+    private static function registerScopesMacros(): void
+    {
+        foreach (static::appliedWorkflows() as $class) {
+
+            $alias = Str::pascal(class_basename($class));
+
+            Builder::macro("where{$alias}CurrentStatus",
+                fn(string|UnitEnum|array $states) => $this->whereCurrentStatus($class, $states));
+
+            Builder::macro("orWhere{$alias}CurrentStatus",
+                fn(string|UnitEnum|array $states) => $this->orWhereCurrentStatus($class, $states));
+
+
+            Builder::macro("whereNot{$alias}CurrentStatus",
+                fn(string|UnitEnum|array $states) => $this->whereNotCurrentStatus($class, $states));
+
+            Builder::macro("orWhereNot{$alias}CurrentStatus",
+                fn(string|UnitEnum|array $states) => $this->orWhereNotCurrentStatus($class, $states));
+
+            Builder::macro("withWhere{$alias}CurrentStatus",
+                fn(string|UnitEnum|array $states) => $this->withWhereCurrentStatus($class, $states));
+        }
     }
 
     /**
-     * Helpers
+     * @param  string|class-string  $workflow  e.g. 'mainFlow' or \Flowra\Flows\MainWorkflow\MainWorkflow::class
+     * @param  string|UnitEnum|array  $states
+     * @return array
      */
-    protected function normalizeWorkflowAndStates(string $workflow, string|UnitEnum|array $states): array
+    private function normalizeWorkflowAndStates(string $workflow, string|UnitEnum|array $states): array
     {
         $relation = $this->workflowRelationName($workflow);
+
         $list = is_array($states) ? $states : [$states];
 
-        // Support backed enums or plain strings
         $in = array_map(function ($s) {
             if ($s instanceof BackedEnum) {
                 return $s->value;
             }
             if ($s instanceof UnitEnum) {
-                // Pure (non-backed) enum → use its name
                 return $s->name;
             }
             return (string) $s;
@@ -85,9 +141,10 @@ trait HasWorkflowScopes
     }
 
     /**
-     * Accept alias ('mainFlow') or FQCN and map to relation name like 'mainFlowStatus'.
+     * @param  string|class-string  $workflow  e.g. 'mainFlow' or \Flowra\Flows\MainWorkflow\MainWorkflow::class
+     * @return string
      */
-    protected function workflowRelationName(string $workflow): string
+    private function workflowRelationName(string $workflow): string
     {
         $isClass = class_exists($workflow);
         $alias = $isClass ? Str::camel(class_basename($workflow)) : Str::camel($workflow);

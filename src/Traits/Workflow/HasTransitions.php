@@ -13,7 +13,7 @@ trait HasTransitions
 
     public static function bootHasTransitions(): void
     {
-        foreach (static::transitionSchema() as $t) {
+        foreach (static::transitionsSchema() as $t) {
             if (!$t instanceof Transition)
                 continue;
 

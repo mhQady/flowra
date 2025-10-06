@@ -23,11 +23,9 @@ class BaseWorkflow
         static::bootIfNotBooted();
 
         $this->initializeTraits();
-
-//        $this->bindSubflows();
     }
 
-    public static function transitionSchema(): array
+    public static function transitionsSchema(): array
     {
         return [];
     }
@@ -56,8 +54,8 @@ class BaseWorkflow
             return $t;
 
         $innerName = Str::snake($name);
-        if (isset($this->innerWorkflows[$innerName]))
-            return $this->innerWorkflows[$innerName];
+        if (isset($this->subflows[$innerName]))
+            return $this->subflows[$innerName];
 
         return null;
     }

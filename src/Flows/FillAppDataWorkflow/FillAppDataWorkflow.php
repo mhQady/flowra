@@ -11,7 +11,7 @@ class FillAppDataWorkflow extends BaseWorkflow implements BaseWorkflowContract
     /**
      * @return array|Transition[]
      */
-    public static function transitionSchema(): array
+    public static function transitionsSchema(): array
     {
         return [
             Transition::make(

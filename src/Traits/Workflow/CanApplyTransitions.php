@@ -71,7 +71,7 @@ trait CanApplyTransitions
             $this->__appendToRegistry($t);
 
 //            if ($this->isBoundState($t->to)) {
-//                $innerWorkflow = $this->innerWorkflows[$t->to->value];
+//                $innerWorkflow = $this->subflows[$t->to->value];
 ////                dd($innerWorkflow);
 //                $innerStartTransitionName = $innerWorkflow->startTransition;
 //                $innerWorkflow->apply($innerWorkflow->{$innerStartTransitionName});
@@ -84,7 +84,7 @@ trait CanApplyTransitions
 
     private function isBoundState(UnitEnum $state): bool
     {
-        return array_key_exists($state->value, $this->innerWorkflows);
+        return array_key_exists($state->value, $this->subflows);
     }
 
 
@@ -115,7 +115,9 @@ trait CanApplyTransitions
 
     private function isWorkflowRegisteredForModel(): bool
     {
-        if (isset($this->model->workflows) && in_array($this::class, $this->model->workflows))
+        $appliedWorkflows = $this->model::appliedWorkflows();
+
+        if (isset($appliedWorkflows) && in_array($this::class, $appliedWorkflows))
             return true;
 
         return false;

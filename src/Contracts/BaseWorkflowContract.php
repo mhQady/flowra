@@ -9,5 +9,5 @@ interface BaseWorkflowContract
     /**
      * @return array|Transition[]
      */
-    public static function transitionSchema(): array;
+    public static function transitionsSchema(): array;
 }

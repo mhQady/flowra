@@ -25,17 +25,11 @@ use UnitEnum;
 trait HasSubflow
 {
     public int $depth = 0;
-    public array $innerWorkflows = [];
+    public static array $subflows = [];
 
-    /** Override in PARENT workflow to bind a state → child workflow + completion map. */
-    protected function defineSubflows(): array
+    public function initializeHasSubflow(): void
     {
-        return [];
-    }
-
-    private function bindSubflows(): void
-    {
-        foreach ($this->defineSubflows() as $sub) {
+        foreach (static::subflowsSchema() as $sub) {
             $innerWorkflow = new $sub->innerWorkflow($this->model);
 
             $innerWorkflow->boundState = $sub->boundState;
@@ -43,9 +37,13 @@ trait HasSubflow
             $innerWorkflow->startTransition = $sub->startTransition;
             $innerWorkflow->exits = $sub->exits;
 
-            $this->innerWorkflows[$sub->boundState] = $innerWorkflow;
-//            $this->model->workflows[] = $innerWorkflow::class;
+            static::$subflows[$this::class][$sub->boundState] = $innerWorkflow;
         }
+    }
+
+    protected static function subflowsSchema(): array
+    {
+        return [];
     }
 
     // ---- HOOKS (call these from the transition pipeline) ----
@@ -108,7 +106,7 @@ trait HasSubflow
     // ---- Parent path ----
     protected function maybeSpawnInnerWorkflowOnState(UnitEnum $entered): void
     {
-        $cfg = $this->innerWorkflows;
+        $cfg = $this->subflows;
         if (!$cfg) return;
         $stateKey = is_string($entered) ? $entered : $entered->value;
         $binding = $cfg[$stateKey] ?? null;
