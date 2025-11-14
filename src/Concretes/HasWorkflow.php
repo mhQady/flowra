@@ -7,6 +7,8 @@ use Flowra\Traits\WorkflowAware;
 
 trait HasWorkflow
 {
+    public array $registeredSubflows = [];
+
     use WorkflowAware, HasWorkflowRelations;
 
     public static function appliedWorkflows(): array

@@ -7,16 +7,14 @@ use Flowra\Models\{Registry, Status};
 use Flowra\Traits\Support\Bootable;
 use Flowra\Traits\Workflow\{HasStates, HasSubflow, HasTransitions};
 use Illuminate\Database\Eloquent\Collection;
-use Str;
+use Illuminate\Support\Str;
 
-/**
- * @todo
- * An inner flow allows a single state in your main workflow to trigger and manage another, separate workflow (the inner flow).
- * The parent workflow usually waits until the inner flow completes (reaches a terminal state), then resumes its own transitions.
- */
 class BaseWorkflow
 {
-    use Bootable, HasStates, HasTransitions, HasSubflow;
+    use Bootable;
+    use HasStates;
+    use HasTransitions;
+    use HasSubflow;
 
     public function __construct(public readonly HasWorkflowContract $model)
     {
@@ -25,11 +23,9 @@ class BaseWorkflow
         $this->initializeTraits();
     }
 
-    public static function transitionsSchema(): array
-    {
-        return [];
-    }
-
+    /**
+     * @return Status|null
+     */
     public function status(): ?Status
     {
         return Status::query()
@@ -39,6 +35,9 @@ class BaseWorkflow
             ->first();
     }
 
+    /**
+     * @return Collection
+     */
     public function registry(): Collection
     {
         return Registry::query()
@@ -50,12 +49,19 @@ class BaseWorkflow
 
     public function __get(string $name)
     {
-        if ($t = $this->__accessCachedTransitionAsProperty($name))
-            return $t;
+        $name = Str::camel($name);
 
-        $innerName = Str::snake($name);
-        if (isset($this->subflows[$innerName]))
-            return $this->subflows[$innerName];
+        if ($t = $this->resolveTransitionProperty($name)) {
+            return $t;
+        }
+
+        if ($sub = $this->resolveSubflowProperty($name)) {
+            return $sub;
+        }
+
+        //        $innerName = Str::snake($name);
+        //        if (isset($this->subflows[$innerName]))
+        //            return $this->subflows[$innerName];
 
         return null;
     }

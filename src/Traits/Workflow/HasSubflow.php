@@ -2,6 +2,7 @@
 
 namespace Flowra\Traits\Workflow;
 
+use BackedEnum;
 use Flowra\Concretes\BaseWorkflow;
 use Flowra\DTOs\Transition;
 use Flowra\Models\{Registry, Status};
@@ -9,35 +10,30 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 use UnitEnum;
 
-/**
- * Infinite nested workflows using only statuses_registry.
- * Correlates parent↔child with a UUID run_id written to registry.comment.
- *
- * Parent writes:
- *   START   transition="__inner_start:{run_id}", workflow=Parent::class, to=parent_state
- *   COMPLETE transition="__inner_complete:{run_id}", workflow=Parent::class, to=child_final_state
- *
- * Child writes:
- *   ATTACH  transition="__inner_attach:{run_id}", workflow=Child::class, to=initial_state
- */
 trait HasSubflow
 {
-    public int $depth = 0;
-    public static array $subflows = [];
+    private static array $subflows = [];
 
-    public function initializeHasSubflow(): void
+    public array $parentFlowConfigurations = [
+        'start_transition' => null,
+        'exits' => [],
+        'parent_current_status' => null,
+        'parent' => null
+    ];
+
+    public static function bootHasSubflow(): void
+    {
+        static::initializeSubflows();
+    }
+
+
+    private static function initializeSubflows(): void
     {
         foreach (static::subflowsSchema() as $sub) {
-            $innerWorkflow = new $sub->innerWorkflow($this->model);
-
-            $innerWorkflow->boundState = $sub->boundState;
-            $innerWorkflow->parentWorkflow = static::class;
-            $innerWorkflow->startTransition = $sub->startTransition;
-            $innerWorkflow->exits = $sub->exits;
-
-            static::$subflows[$this::class][$sub->boundState] = $innerWorkflow;
+            static::$subflows[static::class][$sub['key']] = $sub;
         }
     }
 
@@ -46,30 +42,70 @@ trait HasSubflow
         return [];
     }
 
+    public static function subflows(): array
+    {
+        static::bootIfNotBooted();
+
+        if (!isset(static::$subflows[static::class]))
+            return [];
+
+        return static::$subflows[static::class];
+    }
+
     // ---- HOOKS (call these from the transition pipeline) ----
 
-    protected function __beforeTransitionApply(Transition $transition): void
+    protected function checkSubflowBeforeApplyTransition(Transition $t): void
     {
-        if ($this->hasActiveInnerRunForParent(static::class)) {
+        if ($this->hasActiveInnerRunForParent($t)) {
             throw new RuntimeException('Workflow is blocked by a running inner workflow.');
         }
+
     }
 
-    protected function hasActiveInnerRunForParent(string $parentWorkflow): bool
+    /**
+     * @throws Throwable
+     */
+    protected function checkSubflowAfterApplyTransition(Transition $t, Status $status): void
     {
-        $start = $this->latestParentStartRow($parentWorkflow);
-
-        if (!$start) return false;
-
-        $runId = Arr::get($start->comment, '__inner.run_id');
-        return !$this->parentHasCompleteForRun($parentWorkflow, $runId, $start->id);
+        $this->maybeApplyStartTransitionToSubflow($t, $status);
+        $this->maybeApplyExitTransitionToParentflow($t, $status);
+//        $this->maybeCompleteParentFromChild($to);
     }
 
-    protected function __afterTransitionApplied(?UnitEnum $from, UnitEnum $to): void
+    protected function hasActiveInnerRunForParent(Transition $t): bool
     {
-        $this->maybeSpawnInnerWorkflowOnState($to);
-        $this->maybeCompleteParentFromChild($to);
+        if (!$this->currentState instanceof UnitEnum) {
+            return false;
+        }
+
+        $stateKey = $this->stateKey($this->currentState);
+        $subflow = $this->resolveBoundSubflow($stateKey);
+
+        if (!$subflow) {
+            return false;
+        }
+
+        $childWorkflow = $this->{$subflow['key']} ?? null;
+        if (!$childWorkflow instanceof BaseWorkflow) {
+            return false;
+        }
+
+        $childStatus = $childWorkflow->status();
+        if (!$childStatus) {
+            return false;
+        }
+
+        $exits = $subflow['subflow']['exits'] ?? [];
+        $childStateKey = $childStatus->to;
+
+        if (array_key_exists($childStateKey, $exits)) {
+            $allowedTransition = Str::camel($exits[$childStateKey]);
+            return $allowedTransition !== Str::camel($t->key);
+        }
+
+        return true;
     }
+
 
 //    public function flowDepth(): int
 //    {
@@ -104,33 +140,59 @@ trait HasSubflow
     }
 
     // ---- Parent path ----
-    protected function maybeSpawnInnerWorkflowOnState(UnitEnum $entered): void
-    {
-        $cfg = $this->subflows;
-        if (!$cfg) return;
-        $stateKey = is_string($entered) ? $entered : $entered->value;
-        $binding = $cfg[$stateKey] ?? null;
-        if (!$binding) return;
 
-        $childClass = $binding['child'] ?? null;
-        if (!$childClass || !class_exists($childClass)) return;
+    /**
+     * @throws Throwable
+     */
+    protected function maybeApplyStartTransitionToSubflow(Transition $t, Status $status): void
+    {
+        $subflow = $this->resolveBoundSubflow($status->to);
+
+        if (!$subflow) {
+            return;
+        }
+
+        $childWorkflow = $this->{$subflow['key']};
+
+        $childWorkflow->parentFlowConfigurations['parent_current_status'] = $status;
+        $childWorkflow->parentFlowConfigurations['parent'] = $this;
 
         // Avoid duplicates if a run for this state is already open
-        if ($this->hasActiveInnerRunForParentState(static::class, $stateKey)) return;
+//        if ($this->hasActiveInnerRunForParentState(static::class, $stateKey)) return;
 
-        DB::transaction(function () use ($binding, $stateKey, $childClass) {
-            $runId = (string) Str::uuid();
-            $parentDepth = $this->flowDepth();
+        if (!$startTransition = $childWorkflow->{$subflow['subflow']['start_transition']}) {
+            throw new RuntimeException('SubFlow Start Transition is not defined');
+        };
 
-            // START (parent)
-            $this->writeParentStart(static::class, $stateKey, $childClass, $binding['map'] ?? [], $runId, $parentDepth);
+        $startTransition->apply();
+    }
 
-            // Boot child and ATTACH
-            if (($binding['auto_start'] ?? true) === true) {
-                $child = new $childClass($this->model);
-                $this->ensureWorkflowBootedWithAttach($child, $runId, static::class, $parentDepth + 1);
+    /**
+     * @throws Throwable
+     */
+    protected function maybeApplyExitTransitionToParentflow(Transition $t, Status $status): void
+    {
+
+        foreach ($this->parentFlowConfigurations['exits'] as $key => $value) {
+            if ($status->to == $key) {
+                $this->parentFlowConfigurations['parent']->{$value}?->apply();
+                break;
             }
-        });
+        }
+
+    }
+
+    private function resolveBoundSubflow(UnitEnum|string $state): ?array
+    {
+        $stateKey = $this->stateKey($state);
+
+        foreach ($this::subflows() as $key => $wf) {
+            if ($wf['bound_state'] === $stateKey) {
+                return ['key' => $key, 'subflow' => $wf];
+            }
+        }
+
+        return null;
     }
 
     protected function hasActiveInnerRunForParentState(string $parentWorkflow, string $parentState): bool
@@ -339,5 +401,46 @@ trait HasSubflow
         ]);
 
         return $initial;
+    }
+
+    protected function resolveSubflowProperty(string $name): ?BaseWorkflow
+    {
+        if (in_array($name, array_keys(static::$subflows[static::class]))) {
+            $subFlow = static::$subflows[static::class][$name];
+
+            $workflow = $subFlow['workflow_instance_cache'];
+
+            if (!$workflow) {
+                $workflow = new $subFlow['workflow_class']($this->model);
+
+                $this->model->registeredSubflows[] = $subFlow['workflow_class'];
+                # cache subflow configurations in workflow
+                $workflow->parentFlowConfigurations = [
+                    'start_transition' => $subFlow['start_transition'],
+                    'exits' => $subFlow['exits'],
+                    'parent_current_status' => $this->currentStatus,
+                    'parent' => $this
+                ];
+
+                $subFlow['workflow_instance_cache'] = $workflow;
+            }
+
+            return $workflow;
+        }
+
+        return null;
+    }
+
+    private function stateKey(UnitEnum|string $state): string
+    {
+        if ($state instanceof BackedEnum) {
+            return (string) $state->value;
+        }
+
+        if ($state instanceof UnitEnum) {
+            return $state->name;
+        }
+
+        return (string) $state;
     }
 }

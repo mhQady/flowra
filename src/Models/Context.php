@@ -15,19 +15,7 @@ class Context extends Model implements HasWorkflowContract
     use HasWorkflow;
 
     protected $guarded = ['id'];
-
-    protected $casts = [
-        'test' => 'array'
-    ];
-
     public static array $workflows = [
         MainWorkflow::class,
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'id' => 'integer'
-        ];
-    }
 }

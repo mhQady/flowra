@@ -17,7 +17,7 @@ class MainWorkflow extends BaseWorkflow implements BaseWorkflowContract, HasSubf
     {
         return [
             Transition::make(
-                key: 'sending_for_engoffice_credence',
+                key: 'filling_app_data',
                 from: MainWorkflowStates::INIT,
                 to: MainWorkflowStates::DRAFT,
             ),
@@ -37,7 +37,7 @@ class MainWorkflow extends BaseWorkflow implements BaseWorkflowContract, HasSubf
                 to: MainWorkflowStates::CANCELLED_BY_SURVEYOR,
             ),
             Transition::make(
-                key: 'sending_for_auditing',
+                key: 'sendingForAuditing',
                 from: MainWorkflowStates::WAITING_ENGOFFICE_CREDENCE,
                 to: MainWorkflowStates::READY_FOR_AUDITING,
             ),
@@ -126,7 +126,7 @@ class MainWorkflow extends BaseWorkflow implements BaseWorkflowContract, HasSubf
                 ->to(FillAppDataWorkflow::class)
                 ->start('filling_owner_data')
                 ->exit(FillAppDataWorkflowStates::SENT, 'sendingForEngofficeCredence')
-                ->make(),
+                ->done(),
         ];
     }
 }

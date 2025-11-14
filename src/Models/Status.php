@@ -3,12 +3,19 @@
 namespace Flowra\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Status extends Model
 {
+    use HasUuids;
+
+    public $incrementing = false;
+    protected $keyType = 'string';
+
     protected $guarded = ['id'];
 
     public function __construct(array $attributes = [])
@@ -17,24 +24,26 @@ class Status extends Model
         parent::__construct($attributes);
     }
 
-    protected function casts(): array
-    {
-        return [
-            'depth' => 'int'
-        ];
-    }
+//    protected function casts(): array
+//    {
+//        return [
+//            'depth' => 'int'
+//        ];
+//    }
 
     public function owner(): MorphTo
     {
         return $this->morphTo();
     }
 
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
     public function children(): HasMany
     {
-        return $this->hasMany(Status::class, 'bound_state', 'to')
-            ->whereColumn(
-                'child.parent_workflow', 'parent.workflow_key'
-            );
+        return $this->hasMany(self::class, 'parent_id');
     }
 
     protected function comment(): Attribute

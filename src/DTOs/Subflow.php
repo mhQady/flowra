@@ -5,6 +5,7 @@ namespace Flowra\DTOs;
 use BackedEnum;
 use Flowra\Contracts\Subflow\{BindStep, DoneStep, ExitStep, StartStep, ToStep};
 use LogicException;
+use Str;
 use UnitEnum;
 
 final class Subflow implements BindStep, ToStep, StartStep, ExitStep, DoneStep
@@ -51,11 +52,24 @@ final class Subflow implements BindStep, ToStep, StartStep, ExitStep, DoneStep
         return $this;
     }
 
-    public function make(): Subflow
+    public function done(): array
     {
         if (!$this->boundState || !$this->innerWorkflow || !$this->startTransition || !$this->exits) {
             throw new LogicException('Subflow is not properly configured.');
         }
-        return $this;
+        return $this->toArray();
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'bound_state' => $this->boundState,
+            'workflow_class' => $this->innerWorkflow,
+            'start_transition' => $this->startTransition,
+            'exits' => $this->exits,
+
+            'key' => Str::camel(class_basename($this->innerWorkflow)),
+            'workflow_instance_cache' => null
+        ];
     }
 }

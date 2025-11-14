@@ -47,8 +47,7 @@ trait HasStates
 
         return static::$statesClass[static::class];
     }
-
-
+    
     protected function hydrateStates(?Status $status = null): void
     {
         if (is_null($status)) {

@@ -17,8 +17,13 @@ trait HasTransitions
             if (!$t instanceof Transition)
                 continue;
 
-            static::$transitions[static::class][$t->key] = $t;
+            static::$transitions[static::class][Str::camel($t->key)] = $t;
         }
+    }
+
+    public static function transitionsSchema(): array
+    {
+        return [];
     }
 
     public static function transitions(): array
@@ -31,9 +36,8 @@ trait HasTransitions
         return static::$transitions[static::class];
     }
 
-    protected function __accessCachedTransitionAsProperty(string $name): ?Transition
+    protected function resolveTransitionProperty(string $name): ?Transition
     {
-        $name = Str::of($name)->snake()->toString();
         if (in_array($name, array_keys(static::$transitions[static::class]))) {
             $t = self::$transitions[static::class][$name];
             $t->workflow($this);

@@ -4,8 +4,10 @@ namespace Flowra\Traits\Support;
 
 trait Bootable
 {
-    /** @var array<class-string, bool> */
-    protected static array $booted = [];
+    /**
+     * @property array<class-string>
+     */
+    private static array $booted = [];
 
     /** @var array<class-string, array<string, list<callable>>> */
     protected static array $listeners = [];
@@ -19,14 +21,14 @@ trait Bootable
             return;
         }
 
-        // 1) class-level boot
+        # 1) class-level boot
         if (method_exists($class, 'boot')) {
             forward_static_call([$class, 'boot']);
         }
 
-        // 2) trait-level booters: boot{Trait}
-        foreach (static::__classTraitsRecursive($class) as $trait) {
-            $method = 'boot'.static::__shortName($trait);
+        # 2) trait-level booters: boot{Trait}
+        foreach (static::classTraitsRecursive($class) as $trait) {
+            $method = 'boot'.class_basename($trait);
             if (method_exists($class, $method)) {
                 forward_static_call([$class, $method]);
             }
@@ -35,11 +37,14 @@ trait Bootable
         static::$booted[$class] = true;
     }
 
-    /** Run on every new instance */
+    /**
+     *  Run on every new instance
+     * @return void
+     */
     protected function initializeTraits(): void
     {
-        foreach (static::__classTraitsRecursive(static::class) as $trait) {
-            $method = 'initialize'.static::__shortName($trait);
+        foreach (static::classTraitsRecursive(static::class) as $trait) {
+            $method = 'initialize'.class_basename($trait);
             if (method_exists($this, $method)) {
                 $this->{$method}();
             }
@@ -72,14 +77,14 @@ trait Bootable
      * @param  string  $class
      * @return array<class-string>
      */
-    private static function __classTraitsRecursive(string $class): array
+    private static function classTraitsRecursive(string $class): array
     {
         $traits = [];
         do {
             $traits = array_merge($traits, class_uses($class));
         } while ($class = get_parent_class($class));
 
-        // add traits used by traits
+        # add traits used by traits
         $searched = $traits;
         while (!empty($searched)) {
             $new = class_uses(array_pop($searched));
@@ -88,10 +93,5 @@ trait Bootable
         }
 
         return array_values(array_unique($traits));
-    }
-
-    private static function __shortName(string $fqcn): string
-    {
-        return str_replace('\\', '', substr($fqcn, strrpos($fqcn, '\\') + 1));
     }
 }

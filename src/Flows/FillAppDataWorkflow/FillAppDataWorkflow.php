@@ -22,7 +22,7 @@ class FillAppDataWorkflow extends BaseWorkflow implements BaseWorkflowContract
             Transition::make(
                 key: 'filling_certificates_data',
                 from: FillAppDataWorkflowStates::OWNER_INFO_ENTERED,
-                to: FillAppDataWorkflowStates::CERTIFICATES_INFO_ENTERED,
+                to: FillAppDataWorkflowStates::SENT,
             ),
             Transition::make(
                 key: 'filling_buildings_data',

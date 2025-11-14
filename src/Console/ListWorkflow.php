@@ -2,7 +2,6 @@
 
 namespace Flowra\Console;
 
-use Flowra\Flows\MainFlow\MainWorkflowStates;
 use Flowra\Models\Context;
 use Illuminate\Console\Command;
 
@@ -13,18 +12,20 @@ class ListWorkflow extends Command
 
     public function handle()
     {
-        $m = Context::
-        withWhereCurrentStatus(MainWorkflowStates::WAITING_ENGOFFICE_CREDENCE)
-            ->get();
+        $m = Context::firstOrCreate();
 
 
-        $s = $m;
+        // $s = $m->mainWorkflow->filling_app_data->apply();
+        $s = $m->mainWorkflow->sendingForAuditing->apply();
+        // $s = $m->mainWorkflow->fillAppDataWorkflow->filling_certificates_data->apply();
 
         dd(
             $s,
-//            '--------------------',
-//            $m->mainWorkflow
-//            FillAppDataWorkflow::transitions()
+            //            $m->mainWorkflow->fillAppDataWorkflow,
+            //            $m->mainWorkflow::subflows()
+            //            '--------------------',
+            //            $m->mainWorkflow
+            //            FillAppDataWorkflow::transitions()
         );
     }
 }
