@@ -5,7 +5,7 @@ namespace Flowra\Concretes;
 use Flowra\Contracts\HasWorkflowContract;
 use Flowra\Models\{Registry, Status};
 use Flowra\Traits\Support\Bootable;
-use Flowra\Traits\Workflow\{HasStates, HasSubflow, HasTransitions};
+use Flowra\Traits\Workflow\{HasStates, HasTransitions};
 use Illuminate\Database\Eloquent\Collection;
 use Str;
 
@@ -16,7 +16,7 @@ use Str;
  */
 class BaseWorkflow
 {
-    use Bootable, HasStates, HasTransitions, HasSubflow;
+    use Bootable, HasStates, HasTransitions;
 
     public function __construct(public readonly HasWorkflowContract $model)
     {
@@ -52,10 +52,6 @@ class BaseWorkflow
     {
         if ($t = $this->__accessCachedTransitionAsProperty($name))
             return $t;
-
-        $innerName = Str::snake($name);
-        if (isset($this->subflows[$innerName]))
-            return $this->subflows[$innerName];
 
         return null;
     }

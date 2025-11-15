@@ -1,28 +1,181 @@
 # Flowra
 
-A powerful and flexible **workflow management engine for Laravel** that stores and manages workflows entirely in your
-database.
-It enables you to define **states**, **transitions**, and **actions** dynamically without hardcoding logic, giving you
-full control over business processes.
-Flowra is **inspired by Drupal's Workflow module**, bringing similar concepts of states, transitions, and approvals into
-the Laravel ecosystem with a modern, database-driven approach.
+Flowra is a database-driven workflow engine for Laravel applications. It lets you describe business processes as
+workflows composed of **typed states**, **transitions**, **guards**, **actions**, and **state groups**—all persisted in
+your database so processes can evolve without redeploying code.
+
+The package provides artisan generators, migration stubs, rich Eloquent traits, and DTO helpers that make it simple to:
+
+- attach workflows to any Eloquent model,
+- track the current status and historical registry of each workflow run,
+- nest inner workflows through state groups,
+- gate transitions with guards and execute actions after state changes, and
+- query models by workflow state (including grouped states) using fluent scopes.
 
 ---
 
-## ✨ Features
+## ✨ Key Concepts
 
-- 🔗 **Database-Driven** – Workflows, states, and transitions are persisted in the database, allowing runtime changes
-  without code deployment.
-- ⚡ **Dynamic Transitions** – Define conditional rules for moving between states, including permissions and validation.
-- 🔍 **Event & Observer Support** – Hook into Laravel’s event system to trigger custom actions when transitions occur.
-- 🛠 **Extendable Architecture** – Easily integrate with your existing models, permissions, and business logic.
-- 📊 **Workflow Tracking** – Keep a history of transitions for auditing and reporting purposes.
+### Workflows & States
+
+Every workflow extends `Flowra\Concretes\BaseWorkflow` and defines two classes:
+
+- `YourWorkflow` – contains transition definitions.
+- `YourWorkflowStates` – an enum describing the workflow states. Optional `groups()` declarations describe grouped
+  states that wrap nested flows (e.g., a `draft` group that owns all of the child fill-data states).
+
+```php
+enum MainWorkflowStates: string
+{
+    use Flowra\Enums\BaseEnum;
+
+    case INIT = 'init';
+    case DRAFT = 'draft';
+    case READY_FOR_AUDITING = 'ready_for_auditing';
+    // ...
+
+    public static function groups(): array
+    {
+        return [
+            \Flowra\DTOs\StateGroup::make(self::DRAFT)->children(
+                FillAppDataWorkflowStates::INIT,
+                FillAppDataWorkflowStates::OWNER_INFO_ENTERED,
+                FillAppDataWorkflowStates::SENT,
+            ),
+        ];
+    }
+}
+```
+
+State groups are surfaced everywhere—switching, querying, and eager loading—so your parent workflow knows when a child
+flow is running and scopes can refer to either the parent `draft` group or any of its nested child states.
+
+### Transitions
+
+Use the `Transition` DTO to define transitions, guards, and actions:
+
+```php
+class MainWorkflow extends BaseWorkflow
+{
+    public static function transitionsSchema(): array
+    {
+        return [
+            Transition::make('filling_app_data', MainWorkflowStates::INIT, MainWorkflowStates::DRAFT)
+                ->guard(CheckPermissions::class)
+                ->action(fn ($transition) => event(new WorkflowStarted($transition))),
+        ];
+    }
+}
+```
+
+Transitions are cached and exposed as magic properties (`$model->mainWorkflow->fillingAppData`) so you can call
+`->apply()` on them fluently.
+
+### Guards & Actions
+
+- **Guards** (`Flowra\Contracts\GuardContract`) determine if a transition may proceed.
+- **Actions** (`Flowra\Contracts\ActionContract`) run after persistence.
+
+Both can be closures, container-resolved class names, or concrete instances.
+
+### Persistence
+
+Flowra publishes migrations for two tables:
+
+- `statuses` – holds the current status per workflow & owner, including hierarchy data, type, and path.
+- `statuses_registry` – an append-only log of every transition.
+
+The included `Status` and `Registry` models provide accessors; workflows are kept in sync via the `HasStates`,
+`HasStateGroups`, and `HasTransitions` traits in `BaseWorkflow`.
+
+### Model Integration
+
+Add `Flowra\Concretes\HasWorkflow` to your Eloquent model and define the workflows it uses:
+
+```php
+class Context extends Model
+{
+    use HasWorkflow;
+
+    protected static array $workflows = [
+        \App\Workflows\MainWorkflow\MainWorkflow::class,
+    ];
+}
+```
+
+`HasWorkflow` wires up:
+
+- attribute casts (via `WorkflowAware`) so `$context->mainWorkflow` returns the live workflow instance,
+- relations (`mainWorkflowStatus`, `mainWorkflowRegistry`, `statuses`, `registry`), and
+- query scopes/macros (`whereMainWorkflowCurrentStatus`, `withWhereMainWorkflowCurrentStatus`, etc.) that understand
+  grouped states.
+
+### Subflows via State Groups
+
+Instead of bespoke subflow contracts, Flowra uses state groups to represent nested workflows. When a parent state is
+grouped, Flowra knows:
+
+- the parent workflow should suspend until the child reaches one of the mapped exit states,
+- the registry should record the nested path/parent IDs, and
+- query scopes should normalize child states back to the parent group automatically.
 
 ---
 
-## 🚀 Installation
+## 🧰 Tooling
 
-Require the package via Composer:
+Flowra ships several artisan commands once registered through `FlowraServiceProvider`:
+
+- `flowra:make-workflow` – scaffolds a workflow class and its states enum (with the `groups()` template).
+- `flowra:make-guard`, `flowra:make-action` – generate guard/action classes.
+- `flowra:list-workflow` – inspect registered workflows at runtime.
+
+It also publishes config (`config/flowra.php`), migrations, stubs, and translations. After installing via Composer, run:
+
+```bash
+php artisan vendor:publish --tag=flowra-config
+php artisan vendor:publish --tag=flowra-migrations
+php artisan vendor:publish --tag=flowra-stubs
+php artisan migrate
+```
+
+---
+
+## 📦 Installation
 
 ```bash
 composer require mhqady/flowra
+```
+
+Register the service provider if you are not using package auto-discovery, then publish the assets as shown above. Add
+`HasWorkflow` to any model that needs a workflow and use the stubs to generate your first workflow pair.
+
+---
+
+## 🧪 Querying & Scopes
+
+The `HasWorkflowScopes` trait installs helper scopes/macros:
+
+```php
+Context::query()
+    ->whereMainWorkflowCurrentStatus(MainWorkflowStates::READY_FOR_AUDITING)
+    ->orWhereMainWorkflowCurrentStatus(FillAppDataWorkflowStates::OWNER_INFO_ENTERED) // expands to the parent group
+    ->withWhereMainWorkflowCurrentStatus(MainWorkflowStates::DRAFT) // eager loads grouped statuses
+    ->get();
+```
+
+State groups are automatically expanded or collapsed depending on whether you filter by a parent state or a child state.
+
+---
+
+## 🤝 Contributing
+
+1. Fork & clone the repo.
+2. Run `composer install`.
+3. Use the provided Testbench setup for local testing.
+4. Submit pull requests with comprehensive descriptions/tests where possible.
+
+---
+
+Flowra brings workflow modeling, nested state management, and auditability straight into your Laravel models. Whether
+you’re orchestrating multi-step approvals or spinning up nested subflows, Flowra gives you strongly typed, testable
+workflows you can iterate on quickly. Happy flowing!

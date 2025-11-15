@@ -17,7 +17,7 @@ class Transition implements \JsonSerializable
      */
     private array $guards = [];
     private array $actions = [];
-    private array $comments = [];
+    public array $comments = [];
 
     private readonly BaseWorkflow $workflow;
 
@@ -89,9 +89,9 @@ class Transition implements \JsonSerializable
     /**
      * @throws Throwable
      */
-    public function apply(?array $comment = null): BaseWorkflow
+    public function apply(): BaseWorkflow
     {
-        return $this->workflow->apply($this, $comment);
+        return $this->workflow->apply($this);
     }
 
     public function guards(): array

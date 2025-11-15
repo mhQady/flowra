@@ -3,12 +3,14 @@
 namespace Flowra\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Status extends Model
 {
+    use HasUuids;
     protected $guarded = ['id'];
 
     public function __construct(array $attributes = [])

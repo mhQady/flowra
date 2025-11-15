@@ -3,6 +3,7 @@
 namespace Flowra\Console;
 
 use Flowra\Flows\MainFlow\MainWorkflowStates;
+use Flowra\Flows\MainFlow\MainWorkflow;
 use Flowra\Models\Context;
 use Illuminate\Console\Command;
 
@@ -13,10 +14,12 @@ class ListWorkflow extends Command
 
     public function handle()
     {
-        $m = Context::
-        withWhereCurrentStatus(MainWorkflowStates::WAITING_ENGOFFICE_CREDENCE)
+        $m = Context::whereCurrentStatus(MainWorkflow::class,MainWorkflowStates::PREPARE_APPLICATION_INFO)
+        // $m = Context::whereCurrentStatus(MainWorkflow::class,MainWorkflowStates::READY_FOR_OPERATIONS_MANAGER_REVISION)
             ->get();
 
+        // $m = Context::firstOrCreate()->mainWorkflow->initiating->apply();
+        // $m = Context::firstOrCreate()->mainWorkflow::stateGroups();
 
         $s = $m;
 

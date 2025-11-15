@@ -25,19 +25,11 @@ trait CanApplyTransitions
 //
         $this->validateTransitionStructure($t);
 
-        ########################
-        # blocks parent if a child is running
-//        $this->__beforeTransitionApply($t);
-
         $status = $this->__save($t);
 
         $this->hydrateStates($status);
 
-        # spawns child OR completes parent
-//        $this->__afterTransitionApplied($this->currentStatus(), $t->to);
-        ########################
-
-        $this->__executeActions($t);
+        // $this->__executeActions($t);
 
         return $this;
     }
@@ -70,28 +62,15 @@ trait CanApplyTransitions
 
             $this->__appendToRegistry($t);
 
-//            if ($this->isBoundState($t->to)) {
-//                $innerWorkflow = $this->subflows[$t->to->value];
-////                dd($innerWorkflow);
-//                $innerStartTransitionName = $innerWorkflow->startTransition;
-//                $innerWorkflow->apply($innerWorkflow->{$innerStartTransitionName});
-//            }
-
             return $status;
         });
 
     }
 
-    private function isBoundState(UnitEnum $state): bool
-    {
-        return array_key_exists($state->value, $this->subflows);
-    }
-
-
     private function validateTransitionStructure(Transition $t): void
     {
-        if (!$this->model->exists) {
-            throw new ApplyTransitionException(__('flowra::flowra.model_exist'));
+        if (!$this->model?->exists) {
+            throw new ApplyTransitionException(__('flowra::flowra.record_not_exist', ['model'=>$this->model::class]));
         }
 
         if (!$this->isWorkflowRegisteredForModel()) {
@@ -160,14 +139,11 @@ trait CanApplyTransitions
                 'transition' => $t->key,
                 'from' => $t->from->value,
                 'to' => $t->to->value,
-//                'comment' => $t->comment,
-                // 'applied_by' => $t->appliedBy,
+               'comment' => $t->comments,
+                'applied_by' => $t->appliedBy,
                 'type' => $t->type,
-//                'parent_workflow' => $this->parentWorkflow,
-//                'bound_state' => $this->boundState,
             ]
         );
-        //        $this->__afterTransitionApplied($this->currentStatus(), $t->to);
     }
 
 
@@ -184,8 +160,8 @@ trait CanApplyTransitions
             'transition' => $t->key,
             'from' => $t->from->value,
             'to' => $t->to->value,
-//            'comment' => $t->comment,
-            // 'applied_by' => $t->appliedBy,
+           'comment' => $t->comments,
+            'applied_by' => $t->appliedBy,
             'type' => $t->type,
         ]);
     }

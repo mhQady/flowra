@@ -89,7 +89,7 @@ trait HasWorkflowScopes
         string|UnitEnum|array $states
     ): Builder {
         [$relation, $in] = $this->normalizeWorkflowAndStates($workflow, $states);
-        return $query->with([$relation => fn($q) => $q->whereIn('to', $in)]);
+        return $query->withWhereHas($relation, fn($q) => $q->whereIn('to', $in));;
     }
 
     private static function registerScopesMacros(): void
@@ -123,19 +123,17 @@ trait HasWorkflowScopes
      */
     private function normalizeWorkflowAndStates(string $workflow, string|UnitEnum|array $states): array
     {
-        $relation = $this->workflowRelationName($workflow);
-
+        [$relation, $workflowClass] = $this->workflowRelationInfo($workflow);
+        
         $list = is_array($states) ? $states : [$states];
-
-        $in = array_map(function ($s) {
-            if ($s instanceof BackedEnum) {
-                return $s->value;
-            }
-            if ($s instanceof UnitEnum) {
-                return $s->name;
-            }
-            return (string) $s;
-        }, $list);
+    
+        $in = [];
+        
+        foreach ($list as $state) {
+            $in = array_merge($in, $this->expandStateForWorkflow($workflowClass, $state));
+        }
+        
+        $in = array_values(array_unique($in));
 
         return [$relation, $in];
     }
@@ -144,11 +142,92 @@ trait HasWorkflowScopes
      * @param  string|class-string  $workflow  e.g. 'mainFlow' or \Flowra\Flows\MainWorkflow\MainWorkflow::class
      * @return string
      */
+    private function workflowRelationInfo(string $workflow): array
+    {
+        $workflowClass = $this->resolveWorkflowClass($workflow);
+        $relation = $this->workflowRelationName($workflowClass ?? $workflow);
+
+        return [$relation, $workflowClass];
+    }
+
     private function workflowRelationName(string $workflow): string
     {
         $isClass = class_exists($workflow);
         $alias = $isClass ? Str::camel(class_basename($workflow)) : Str::camel($workflow);
 
         return $alias.'Status';
+    }
+
+    private function resolveWorkflowClass(string $workflow): ?string
+    {
+        if (class_exists($workflow)) {
+            return $workflow;
+        }
+
+        if (!method_exists($this, 'appliedWorkflows')) {
+            return null;
+        }
+
+        $target = Str::camel($workflow);
+
+        foreach (static::appliedWorkflows() as $class) {
+            $alias = Str::camel(class_basename($class));
+
+            if ($alias === $target) {
+                return $class;
+            }
+        }
+
+        return null;
+    }
+
+    private function expandStateForWorkflow(?string $workflowClass, string|UnitEnum $state): array
+    {
+        $value = $this->stringifyState($state);
+
+        if (!$workflowClass || !method_exists($workflowClass, 'stateParentGroup')) {
+            if ($workflowClass && method_exists($workflowClass, 'stateGroupChildren')) {
+                return array_map(
+                    fn(array $child) => $child['value'] ?? $child['key'] ?? $value,
+                    $workflowClass::stateGroupChildren($state)
+                );
+            }
+
+            return [$value];
+        }
+
+        $parent = $workflowClass::stateParentGroup($state);
+
+        if ($parent) {
+            $parentState = $parent['state'] ?? [];
+
+            return [$parentState['value'] ?? $parentState['key'] ?? $value];
+        }
+
+        $children = method_exists($workflowClass, 'stateGroupChildren')
+            ? $workflowClass::stateGroupChildren($state)
+            : [];
+
+        if (count($children) > 0) {
+            return array_map(
+                fn(array $child) => $child['value'] ?? $child['key'] ?? $value,
+                $children
+            );
+        }
+
+        return [$value];
+    }
+
+    private function stringifyState(string|UnitEnum $state): string
+    {
+        if ($state instanceof BackedEnum) {
+            return $state->value;
+        }
+
+        if ($state instanceof UnitEnum) {
+            return $state->name;
+        }
+
+        return (string) $state;
     }
 }

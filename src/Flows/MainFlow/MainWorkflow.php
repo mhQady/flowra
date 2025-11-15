@@ -4,11 +4,9 @@ namespace Flowra\Flows\MainFlow;
 
 use Flowra\Concretes\BaseWorkflow;
 use Flowra\Contracts\BaseWorkflowContract;
-use Flowra\Contracts\HasSubflowContract;
-use Flowra\DTOs\{Subflow, Transition};
-use Flowra\Flows\FillAppDataWorkflow\{FillAppDataWorkflow, FillAppDataWorkflowStates};
+use Flowra\DTOs\Transition;
 
-class MainWorkflow extends BaseWorkflow implements BaseWorkflowContract, HasSubflowContract
+class MainWorkflow extends BaseWorkflow implements BaseWorkflowContract
 {
     /**
      * @return array|Transition[]
@@ -17,19 +15,29 @@ class MainWorkflow extends BaseWorkflow implements BaseWorkflowContract, HasSubf
     {
         return [
             Transition::make(
-                key: 'sending_for_engoffice_credence',
+                key: 'initiating',
                 from: MainWorkflowStates::INIT,
-                to: MainWorkflowStates::DRAFT,
+                to: MainWorkflowStates::OWNER_INFO_ENTERED
+            ),
+            Transition::make(
+                key: 'filling_certificates_data',
+                from: MainWorkflowStates::OWNER_INFO_ENTERED,
+                to: MainWorkflowStates::CERTIFICATES_INFO_ENTERED,
+            ),
+            Transition::make(
+                key: 'filling_buildings_data',
+                from: MainWorkflowStates::CERTIFICATES_INFO_ENTERED,
+                to: MainWorkflowStates::BUILDINGS_INFO_ENTERED,
+            ),
+            Transition::make(
+                key: 'filling_inspection_report_data',
+                from: MainWorkflowStates::BUILDINGS_INFO_ENTERED,
+                to: MainWorkflowStates::INSPECTION_REPORT_INFO_ENTERED,
             ),
             Transition::make(
                 key: 'sending_for_engoffice_credence',
-                from: MainWorkflowStates::DRAFT,
+                from: MainWorkflowStates::INSPECTION_REPORT_INFO_ENTERED,
                 to: MainWorkflowStates::WAITING_ENGOFFICE_CREDENCE,
-            ),
-            Transition::make(
-                key: 'cancelling_by_surveyor_while_creating',
-                from: MainWorkflowStates::PREPARE_APPLICATION_INFO,
-                to: MainWorkflowStates::CANCELLED_BY_SURVEYOR,
             ),
             Transition::make(
                 key: 'cancelling_by_surveyor_while_editing',
@@ -116,17 +124,6 @@ class MainWorkflow extends BaseWorkflow implements BaseWorkflowContract, HasSubf
                 from: MainWorkflowStates::READY_FOR_OPERATIONS_MANAGER_REVISION,
                 to: MainWorkflowStates::SENT_BACK_TO_PROCESSOR_FOR_REVISION,
             ),
-        ];
-    }
-
-    public static function subflowsSchema(): array
-    {
-        return [
-            Subflow::define()->bind(MainWorkflowStates::DRAFT)
-                ->to(FillAppDataWorkflow::class)
-                ->start('filling_owner_data')
-                ->exit(FillAppDataWorkflowStates::SENT, 'sendingForEngofficeCredence')
-                ->make(),
         ];
     }
 }

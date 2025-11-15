@@ -6,4 +6,17 @@ enum {{ states_class }}: string
 {
     case INIT = 'init';
     case STEP_ONE_COMPLETED = 'step_one_completed';
+
+//    /**
+//     * Optionally describe grouped (nested) states for this workflow.
+//     *
+//     * @return array
+//     */
+//    public static function groups(): array
+//    {
+//        return [
+//            \Flowra\DTOs\StateGroup::make(self::INIT)
+//                ->children(self::STEP_ONE_COMPLETED),
+//        ];
+//    }
 }

@@ -10,6 +10,8 @@ trait HasStates
     private static array $statesClass = [];
     private static array $states = [];
 
+    use HasStateGroups;
+
     public Status|null $currentStatus = null;
     public ?UnitEnum $currentState = null;
 
@@ -20,6 +22,7 @@ trait HasStates
         if (class_exists($statesClass) && enum_exists($statesClass)) {
             static::$statesClass[static::class] = $statesClass;
             static::__fillStatesProperty();
+            static::bootStateGroups($statesClass);
         }
     }
 
@@ -48,7 +51,6 @@ trait HasStates
         return static::$statesClass[static::class];
     }
 
-
     protected function hydrateStates(?Status $status = null): void
     {
         if (is_null($status)) {
@@ -64,5 +66,10 @@ trait HasStates
         foreach ((static::$statesClass[static::class])::cases() as $case) {
             static::$states[static::class][$case->value] = $case;
         }
+    }
+
+    public function currentStateGroup(): ?array
+    {
+        return static::stateGroupFor($this->currentState);
     }
 }
