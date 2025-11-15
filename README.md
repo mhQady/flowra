@@ -167,15 +167,6 @@ State groups are automatically expanded or collapsed depending on whether you fi
 
 ---
 
-## 🤝 Contributing
-
-1. Fork & clone the repo.
-2. Run `composer install`.
-3. Use the provided Testbench setup for local testing.
-4. Submit pull requests with comprehensive descriptions/tests where possible.
-
----
-
 Flowra brings workflow modeling, nested state management, and auditability straight into your Laravel models. Whether
 you’re orchestrating multi-step approvals or spinning up nested subflows, Flowra gives you strongly typed, testable
 workflows you can iterate on quickly. Happy flowing!

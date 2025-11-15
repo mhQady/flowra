@@ -19,6 +19,6 @@ class Jump extends Transition
         ?int $appliedBy = null,  // optional user id
     )
     {
-        parent::__construct($key, $from, $to, $workflow, $comment, $appliedBy, TransitionTypesEnum::RESET->value);
+        parent::__construct($key, $from, $to, $workflow, $appliedBy, TransitionTypesEnum::RESET->value);
     }
 }

@@ -21,15 +21,15 @@ trait CanApplyTransitions
      */
     public function apply(Transition $t): static
     {
-//        $this->__evaluateGuards($t);
-//
+       $this->__evaluateGuards($t);
+
         $this->validateTransitionStructure($t);
 
         $status = $this->__save($t);
 
         $this->hydrateStates($status);
 
-        // $this->__executeActions($t);
+        $this->__executeActions($t);
 
         return $this;
     }
@@ -50,13 +50,12 @@ trait CanApplyTransitions
 
     /**
      * @param  Transition  $t
-     * @param  array|null  $comment
-     * @return void
+     * @return Status|null
      * @throws Throwable
      */
     private function __save(Transition $t): ?Status
     {
-        return DB::transaction(function () use ($t) {
+        return DB::transaction(function () use ($t): Status {
 
             $status = $this->__saveStatus($t);
 
