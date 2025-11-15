@@ -14,37 +14,45 @@ trait HasWorkflowRelations
 
     protected static function bootHasWorkflowRelations(): void
     {
-        static::__registerWorkflowsRelations();
+        static::registerWorkflowsRelations();
     }
 
-    private static function __registerWorkflowsRelations(): void
+    /**
+     * Register relations for applied workflows.
+     */
+    private static function registerWorkflowsRelations(): void
     {
-        $model = (new static);
+        foreach (static::appliedWorkflows() as $class) {
 
-        $workflows = property_exists($model, 'workflows') ? $model->workflows : [];
+            $alias = Str::camel(class_basename($class));
 
-        foreach ($workflows as $workflowClass) {
-
-            $alias = Str::camel(class_basename($workflowClass));
-
-            static::resolveRelationUsing($alias.'Status', function (Model $model) use ($workflowClass) {
-                return $model->morphOne(Status::class, 'owner')->where('workflow', $workflowClass);
+            static::resolveRelationUsing($alias.'Status', function (Model $model) use ($class) {
+                return $model->morphOne(Status::class, 'owner')->where('workflow', $class);
             });
 
-            static::resolveRelationUsing($alias.'Registry', function (Model $model) use ($workflowClass) {
-                return $model->morphMany(Status::class, 'owner')->where('workflow', $workflowClass);
+            static::resolveRelationUsing($alias.'Registry', function (Model $model) use ($class) {
+                return $model->morphMany(Registry::class, 'owner')->where('workflow', $class);
             });
         }
     }
 
+    /**
+     * Get all statuses records despite the workflow type.
+     *
+     * @return MorphMany
+     */
+    public function statuses(): MorphMany
+    {
+        return $this->morphMany(Status::class, 'owner');
+    }
 
+    /**
+     * Get all registry records despite the workflow type.
+     *
+     * @return MorphMany
+     */
     public function registry(): MorphMany
     {
         return $this->morphMany(Registry::class, 'owner');
-    }
-
-    public function statuses()
-    {
-        return $this->morphMany(Status::class, 'owner');
     }
 }

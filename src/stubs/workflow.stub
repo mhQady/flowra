@@ -4,18 +4,23 @@ namespace {{ namespace }};
 
 use Flowra\Attributes\TransitionMeta;
 use Flowra\Flows\BaseWorkflow;
+use Flowra\Contracts\BaseWorkflowContract;
 use Flowra\DTOs\Transition;
 
-class {{ class }} extends BaseWorkflow
+class {{ class }} extends BaseWorkflow implements BaseWorkflowContract
 {
-    // Example initial self-transition (adjust/remove as you wish)
-    #[TransitionMeta(title: '{{ flow_title }} / Init')]
-    public function initiatingTransition(): Transition
+    # Example initial self-transition (adjust/remove as you wish)
+    /**
+     * @return array|Transition[]
+     */
+    public static function transitionsSchema(): array
     {
-        return $this->t(
-            key: 'initiating',
-            from: {{ states_class }}::INIT,
-            to:   {{ states_class }}::STEP_ONE_COMPLETED,
-        );
+        return [
+            Transition::make(
+                key: 'initiating',
+                from: {{ states_class }}::INIT,
+                to:   {{ states_class }}::STEP_ONE_COMPLETED,
+            ),
+        ];
     }
 }

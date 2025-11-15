@@ -3,7 +3,6 @@
 namespace {{ namespace }};
 
 use Flowra\Contracts\ActionContract;
-use Flowra\Flows\BaseWorkflow;
 use Flowra\DTOs\Transition;
 
 class {{ class }} implements ActionContract
