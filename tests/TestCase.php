@@ -2,7 +2,7 @@
 
 namespace Tests;
 
-use Flowra\Enums\FlowraServiceProvider;
+use Flowra\FlowraServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class TestCase extends Orchestra
@@ -25,8 +25,7 @@ abstract class TestCase extends Orchestra
         $app['config']->set('database.default', 'sqlite');
         $app['config']->set('database.connections.sqlite', [
             'driver' => 'sqlite',
-            // keep the DB file inside your package so it persists between runs:
-            'database' => __DIR__.'/../src/database/testing.sqlite',
+            'database' => ':memory:',
             'prefix' => '',
             'foreign_key_constraints' => true,
         ]);
@@ -36,7 +35,7 @@ abstract class TestCase extends Orchestra
     protected function defineDatabaseMigrations(): void
     {
         // Load your package migrations
-        $this->loadMigrationsFrom(__DIR__.'/database/migrations');
+        $this->loadMigrationsFrom(__DIR__.'/../src/database/migrations');
 
     }
 }

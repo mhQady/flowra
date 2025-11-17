@@ -21,7 +21,7 @@ trait CanApplyTransitions
      */
     public function apply(Transition $t): static
     {
-       $this->__evaluateGuards($t);
+        $this->__evaluateGuards($t);
 
         $this->validateTransitionStructure($t);
 
@@ -69,25 +69,31 @@ trait CanApplyTransitions
     private function validateTransitionStructure(Transition $t): void
     {
         if (!$this->model?->exists) {
-            throw new ApplyTransitionException(__('flowra::flowra.record_not_exist', ['model'=>$this->model::class]));
+            throw new ApplyTransitionException(__('flowra::flowra.record_not_exist', ['model' => $this->model::class]));
         }
 
         if (!$this->isWorkflowRegisteredForModel()) {
             throw new ApplyTransitionException(
-                __('flowra::flowra.workflow_not_registered_for_model',
-                    ['workflow' => $this::class, 'model' => $this->model::class])
+                __(
+                    'flowra::flowra.workflow_not_registered_for_model',
+                    ['workflow' => $this::class, 'model' => $this->model::class]
+                )
             );
         }
 
         # check if transition is already defined in workflow #
         if (!in_array($t->key, array_keys($this->transitions()))) {
-            throw new ApplyTransitionException(__('flowra::flowra.transition_not_registered_for_workflow',
-                ['transition' => $t->key, 'workflow' => $this::class]));
+            throw new ApplyTransitionException(__(
+                'flowra::flowra.transition_not_registered_for_workflow',
+                ['transition' => $t->key, 'workflow' => $this::class]
+            ));
         }
         # determine current (if not started, you may treat "from" as the expected initial) #
         if (($current = $this->currentState?->value ?? $t->from->value) !== $t->from->value) {
-            throw new ApplyTransitionException(__('flowra::flowra.transition_not_applicable',
-                ['transition' => $t->key, 'current' => $current, 'from' => $t->from->value]));
+            throw new ApplyTransitionException(__(
+                'flowra::flowra.transition_not_applicable',
+                ['transition' => $t->key, 'current' => $current, 'from' => $t->from->value]
+            ));
         }
     }
 
@@ -95,8 +101,9 @@ trait CanApplyTransitions
     {
         $appliedWorkflows = $this->model::appliedWorkflows();
 
-        if (isset($appliedWorkflows) && in_array($this::class, $appliedWorkflows))
+        if (isset($appliedWorkflows) && in_array($this::class, $appliedWorkflows)) {
             return true;
+        }
 
         return false;
     }
@@ -138,7 +145,7 @@ trait CanApplyTransitions
                 'transition' => $t->key,
                 'from' => $t->from->value,
                 'to' => $t->to->value,
-               'comment' => $t->comments,
+                'comment' => $t->comments,
                 'applied_by' => $t->appliedBy,
                 'type' => $t->type,
             ]
@@ -159,7 +166,7 @@ trait CanApplyTransitions
             'transition' => $t->key,
             'from' => $t->from->value,
             'to' => $t->to->value,
-           'comment' => $t->comments,
+            'comment' => $t->comments,
             'applied_by' => $t->appliedBy,
             'type' => $t->type,
         ]);

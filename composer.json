@@ -1,10 +1,11 @@
 {
   "name": "mhqady/flowra",
   "type": "library",
-  "description": "A powerful and flexible workflow management package for Laravel that stores and manages workflows entirely in your database. It enables you to define states, transitions, and actions dynamically without hardcoding logic, giving you full control over business processes.",
+  "description": "Flowra is a database-driven workflow engine for Laravel applications. It lets you describe business processes as workflows composed of typed states, transitions, guards, actions, and state group all persisted in your database so processes can evolve without redeploying code.",
   "keywords": [
     "laravel",
     "workflow",
+    "laravel workflow",
     "state machine",
     "status",
     "workflow engine",

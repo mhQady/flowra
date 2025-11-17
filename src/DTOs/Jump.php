@@ -15,10 +15,8 @@ class Jump extends Transition
         BaseWorkflow $workflow,
         // guard: fn($flow) => $flow->model->owner_name && $flow->model->owner_national_id,
         // action: fn($flow) => event(new OwnerInfoEntered($flow->model)),
-        ?array $comment = null,
         ?int $appliedBy = null,  // optional user id
-    )
-    {
+    ) {
         parent::__construct($key, $from, $to, $workflow, $appliedBy, TransitionTypesEnum::RESET->value);
     }
 }

@@ -6,7 +6,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
-    
     public function up(): void
     {
         Schema::create(config('flowra.tables.statuses', 'statuses'), function (Blueprint $table) {
@@ -17,6 +16,17 @@ return new class extends Migration {
 
         Schema::create(config('flowra.tables.registry', 'statuses_registry'), function (Blueprint $table) {
             $this->commonSchema($table);
+        });
+
+        Schema::create(config('flowra.tables.definitions', 'workflow_definitions'), function (Blueprint $table) {
+            $table->id();
+            $table->string('workflow');
+            $table->string('version');
+            $table->json('definition')->nullable();
+            $table->timestamp('active_at')->nullable();
+            $table->timestamps();
+
+            $table->unique(['workflow', 'version'], 'workflow_definitions_workflow_version_uq');
         });
     }
 
@@ -41,7 +51,7 @@ return new class extends Migration {
         $table->string('to');
         $table->json('comment')->nullable()->default(null);
         $table->foreignId('applied_by')->nullable();
-        //        $table->unsignedTinyInteger('type')->default(TransitionTypesEnum::TRANSITION->value);
+        $table->unsignedTinyInteger('type')->default(TransitionTypesEnum::TRANSITION->value);
 
         $table->timestamps();
     }

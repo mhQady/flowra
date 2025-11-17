@@ -31,7 +31,7 @@ enum MainWorkflowStates: string
 
     case INIT = 'init';
     case DRAFT = 'draft';
-    case READY_FOR_AUDITING = 'ready_for_auditing';
+    case PUBLISHED = 'published';
     // ...
 
     public static function groups(): array
@@ -128,6 +128,17 @@ Flowra ships several artisan commands once registered through `FlowraServiceProv
 - `flowra:make-workflow` – scaffolds a workflow class and its states enum (with the `groups()` template).
 - `flowra:make-guard`, `flowra:make-action` – generate guard/action classes.
 - `flowra:list-workflow` – inspect registered workflows at runtime.
+- `flowra:export-workflow` – export any workflow to a Mermaid or PlantUML diagram (print to the console or write to disk).
+
+```bash
+# print a Mermaid diagram
+php artisan flowra:export-workflow "Flowra\Flows\MainFlow\MainWorkflow"
+# ⇢ writes to storage/app/flowra/workflows/Flowra-Flows-MainFlow-MainWorkflow.mmd
+
+# save a PlantUML diagram to a file
+php artisan flowra:export-workflow "Flowra\Flows\MainFlow\MainWorkflow" \
+    --format=plantuml --output=storage/app/diagrams/main-workflow.puml
+```
 
 It also publishes config (`config/flowra.php`), migrations, stubs, and translations. After installing via Composer, run:
 

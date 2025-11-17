@@ -50,7 +50,7 @@ class MainWorkflow extends BaseWorkflow implements BaseWorkflowContract
                 to: MainWorkflowStates::READY_FOR_AUDITING,
             ),
             Transition::make(
-                key: 'cancelling_by_engoOffice',
+                key: 'cancelling_by_engOffice',
                 from: MainWorkflowStates::WAITING_ENGOFFICE_CREDENCE,
                 to: MainWorkflowStates::CANCELLED_BY_ENGOFFICE,
             ),

@@ -16,6 +16,7 @@ class FlowraServiceProvider extends ServiceProvider
                 \Flowra\Console\MakeGuard::class,
                 \Flowra\Console\MakeAction::class,
                 \Flowra\Console\ListWorkflow::class,
+                \Flowra\Console\ExportWorkflowDiagram::class,
             ]);
         }
 
