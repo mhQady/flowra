@@ -3,17 +3,13 @@
 namespace Flowra\Concretes;
 
 use Flowra\Contracts\HasWorkflowContract;
+use Flowra\DTOs\Transition;
 use Flowra\Models\{Registry, Status};
 use Flowra\Traits\Support\Bootable;
 use Flowra\Traits\Workflow\{HasStates, HasTransitions};
 use Illuminate\Database\Eloquent\Collection;
-use Str;
 
-/**
- * @todo
- * An inner flow allows a single state in your main workflow to trigger and manage another, separate workflow (the inner flow).
- * The parent workflow usually waits until the inner flow completes (reaches a terminal state), then resumes its own transitions.
- */
+
 class BaseWorkflow
 {
     use Bootable, HasStates, HasTransitions;
@@ -48,10 +44,11 @@ class BaseWorkflow
             ->get();
     }
 
-    public function __get(string $name)
+    public function __get(string $name): ?Transition
     {
-        if ($t = $this->__accessCachedTransitionAsProperty($name))
+        if ($t = $this->accessCachedTransitionAsProperty($name)) {
             return $t;
+        }
 
         return null;
     }

@@ -4,7 +4,7 @@ namespace Flowra\Models;
 
 use Flowra\Concretes\HasWorkflow;
 use Flowra\Contracts\HasWorkflowContract;
-use Flowra\Flows\MainFlow\MainWorkflow;
+use Flowra\Flows\MainWorkflow\MainWorkflow;
 use Illuminate\Database\Eloquent\Model;
 
 /**

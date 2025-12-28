@@ -12,7 +12,7 @@ class WorkflowCast implements CastsAttributes
     {
     }
 
-    public function get($model, string $key, $value, array $attributes)
+    public function get(Model $model, string $key, $value, array $attributes)
     {
         return $model->hydrateWorkflow($this->workflowClass);
     }

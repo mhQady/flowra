@@ -2,6 +2,16 @@
 
 return [
 
+    'workflows_path' => env('FLOWRA_WORKFLOWS_PATH', 'app/workflows'),
+
+    'cache_workflows' => env('FLOWRA_CACHE_WORKFLOWS', false),
+
+    // Null uses the default cache store; set to a store name to override.
+    'cache_driver' => env('FLOWRA_CACHE_DRIVER', 'database'),
+
+    // Optional list of workflow class names for cache warming/clearing commands.
+    'workflows' => [],
+
     'tables' => [
         'statuses' => 'statuses',
         'registry' => 'statuses_registry',

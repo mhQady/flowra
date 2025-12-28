@@ -2,53 +2,73 @@
 
 namespace Flowra\Traits\Workflow;
 
+use Flowra\DTOs\Transition;
 use Flowra\Models\Status;
+use Flowra\Support\WorkflowCache;
+use RuntimeException;
 use UnitEnum;
 
 trait HasStates
 {
-    private static array $statesClass = [];
-    private static array $states = [];
-
     use HasStateGroups;
+
+    private string $statesEnum;
+
+    /**
+     * @var array|Transition[]
+     */
+    private array $states = [];
 
     public Status|null $currentStatus = null;
     public ?UnitEnum $currentState = null;
 
+    /**
+     * @throws RuntimeException
+     */
     public static function bootHasStates(): void
     {
-        $statesClass = static::class.'States';
+        /**
+         * @var UnitEnum|string $statesEnum
+         */
+        $statesEnum = static::class.'States';
 
-        if (class_exists($statesClass) && enum_exists($statesClass)) {
-            static::$statesClass[static::class] = $statesClass;
-            static::__fillStatesProperty();
-            static::bootStateGroups($statesClass);
+        if (enum_exists($statesEnum)) {
+
+            WorkflowCache::rememberIfMissing(static::class, 'statesEnum', static fn() => $statesEnum);
+
+            WorkflowCache::rememberIfMissing(static::class, 'states', static function () use ($statesEnum) {
+
+                $states = [];
+
+                foreach ($statesEnum::cases() as $case) {
+                    $states[$case->value] = $case;
+                }
+
+                return $states;
+            });
+
+//            static::bootStateGroups($statesEnum);
+        } else {
+            throw new RuntimeException('States enum not found');
         }
     }
 
     public function initializeHasStates(): void
     {
+        $this->statesEnum = WorkflowCache::get(static::class, 'statesEnum');
+        $this->states = WorkflowCache::get(static::class, 'states');
+
         $this->hydrateStates();
     }
 
-    public static function states(): array
+    public function states(): ?array
     {
-        static::bootIfNotBooted();
-
-        if (!isset(static::$states[static::class]))
-            return [];
-
-        return static::$states[static::class];
+        return $this->states;
     }
 
-    public static function statesClass()
+    public function statesEnum(): string
     {
-        static::bootIfNotBooted();
-
-        if (!isset(static::$statesClass[static::class]))
-            return [];
-
-        return static::$statesClass[static::class];
+        return $this->statesEnum;
     }
 
     protected function hydrateStates(?Status $status = null): void
@@ -58,14 +78,7 @@ trait HasStates
         }
 
         $this->currentStatus = $status;
-        $this->currentState = static::$statesClass[static::class]::tryFrom($status?->to);
-    }
-
-    private static function __fillStatesProperty(): void
-    {
-        foreach ((static::$statesClass[static::class])::cases() as $case) {
-            static::$states[static::class][$case->value] = $case;
-        }
+        $this->currentState = ($this->statesEnum)::tryFrom($status?->to);
     }
 
     public function currentStateGroup(): ?array

@@ -1,11 +1,10 @@
 <?php
 
-namespace Flowra\Flows\MainFlow;
+namespace Flowra\Flows\MainWorkflow;
 
 
 use Flowra\DTOs\StateGroup;
 use Flowra\Enums\BaseEnum;
-use Flowra\Flows\FillAppDataWorkflow\FillAppDataWorkflowStates;
 
 enum MainWorkflowStates: string
 {

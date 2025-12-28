@@ -1,6 +1,6 @@
 <?php
 
-use Flowra\Flows\MainFlow\MainWorkflow;
+use Flowra\Flows\MainWorkflow\MainWorkflow;
 
 it('exports a workflow as a mermaid diagram', function () {
     $path = storage_path('app/flowra/workflows/Flowra-Flows-MainFlow-MainWorkflow.mmd');

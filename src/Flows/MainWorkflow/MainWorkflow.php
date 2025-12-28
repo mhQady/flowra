@@ -1,11 +1,35 @@
 <?php
 
-namespace Flowra\Flows\MainFlow;
+namespace Flowra\Flows\MainWorkflow;
 
 use Flowra\Concretes\BaseWorkflow;
 use Flowra\Contracts\BaseWorkflowContract;
 use Flowra\DTOs\Transition;
 
+/**
+ * @property-read Transition $initiating
+ * @property-read Transition $filling_certificates_data
+ * @property-read Transition $filling_buildings_data
+ * @property-read Transition $filling_inspection_report_data
+ * @property-read Transition $sending_for_engoffice_credence
+ * @property-read Transition $cancelling_by_surveyor_while_editing
+ * @property-read Transition $sending_for_auditing
+ * @property-read Transition $cancelling_by_engOffice
+ * @property-read Transition $engoffice_send_back_to_surveyor_for_revision
+ * @property-read Transition $assigning_to_auditor
+ * @property-read Transition $sending_for_processing
+ * @property-read Transition $sending_for_processing_to_active_processor
+ * @property-read Transition $sending_for_audit_to_active_auditor
+ * @property-read Transition $auditor_send_back_to_surveyor_for_revision
+ * @property-read Transition $assigning_to_processor
+ * @property-read Transition $sending_for_operations_manager_revision
+ * @property-read Transition $processor_send_back_to_surveyor_for_revision
+ * @property-read Transition $processor_send_back_to_auditor_for_revision
+ * @property-read Transition $issuing_invoice
+ * @property-read Transition $operations_manager_send_back_to_surveyor_for_revision
+ * @property-read Transition $operations_manager_send_back_to_auditor_for_revision
+ * @property-read Transition $operations_manager_send_back_to_processor_for_revision
+ */
 class MainWorkflow extends BaseWorkflow implements BaseWorkflowContract
 {
     /**

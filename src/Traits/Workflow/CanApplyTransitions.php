@@ -82,7 +82,7 @@ trait CanApplyTransitions
         }
 
         # check if transition is already defined in workflow #
-        if (!in_array($t->key, array_keys($this->transitions()))) {
+        if (!array_key_exists($t->key, $this->transitions())) {
             throw new ApplyTransitionException(__(
                 'flowra::flowra.transition_not_registered_for_workflow',
                 ['transition' => $t->key, 'workflow' => $this::class]
@@ -101,7 +101,7 @@ trait CanApplyTransitions
     {
         $appliedWorkflows = $this->model::appliedWorkflows();
 
-        if (isset($appliedWorkflows) && in_array($this::class, $appliedWorkflows)) {
+        if (isset($appliedWorkflows) && in_array($this::class, $appliedWorkflows, true)) {
             return true;
         }
 
@@ -115,11 +115,11 @@ trait CanApplyTransitions
     private function __validateJumpApplicable(UnitEnum|int|string $state): array
     {
         if (!($state instanceof UnitEnum)) {
-            $state = $this->statesClass::tryFrom($state);
+            $state = $this->statesEnum::tryFrom($state);
         }
 
-        if (!($state instanceof $this->statesClass)) {
-            throw new ApplyJumpException('State is not valid, state must be of type ('.$this->statesClass::class.')');
+        if (!($state instanceof $this->statesEnum)) {
+            throw new ApplyJumpException('State is not valid, state must be of type ('.$this->statesEnum::class.')');
         }
 
         if (!($fromStatus = $this->currentState)) {

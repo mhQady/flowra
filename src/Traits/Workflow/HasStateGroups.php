@@ -4,23 +4,31 @@ namespace Flowra\Traits\Workflow;
 
 use BackedEnum;
 use Flowra\DTOs\StateGroup;
+use Flowra\Support\WorkflowCache;
+use http\Exception\RuntimeException;
 use UnitEnum;
 
 trait HasStateGroups
 {
-    private static array $stateGroups = [];
-    private static array $stateGroupParents = [];
+    private array $stateGroups = [];
+    private array $stateGroupParents = [];
 
-    protected static function bootStateGroups(string $statesClass): void
+    protected static function bootHasStateGroups(): void
     {
-        static::__fillStateGroups($statesClass);
+        static::fillStateGroups();
     }
 
-    public static function stateGroups(): array
+    protected function initializeHasStateGroups(): void
     {
-        static::bootIfNotBooted();
+        $this->stateGroups = WorkflowCache::get(static::class, 'stateGroups');
+        $this->stateGroupParents = WorkflowCache::get(static::class, 'stateGroupParents');
+    }
 
-        return static::$stateGroups[static::class] ?? [];
+    public function stateGroups(): array
+    {
+//        static::bootIfNotBooted();
+
+        return $this->stateGroups;
     }
 
     public static function stateGroupFor(UnitEnum|string|null $state): ?array
@@ -76,38 +84,50 @@ trait HasStateGroups
         return isset(static::$stateGroupParents[static::class][$key]);
     }
 
-    private static function __fillStateGroups(string $statesClass): void
+    private static function fillStateGroups(): void
     {
+        $statesEnum = WorkflowCache::get(static::class, 'statesEnum');
+
         $groups = [];
 
-        if (method_exists($statesClass, 'groups')) {
-            $groups = $statesClass::groups();
+        if (method_exists($statesEnum, 'groups')) {
+            $groups = $statesEnum::groups();
         }
 
+        $stateGroups = [];
+        $stateGroupParents = [];
+
         foreach ($groups as $group) {
-            if ($group instanceof StateGroup) {
-                $group = $group->toArray();
+
+            if (!$group instanceof StateGroup) {
+                throw new RuntimeException('groups() must return an array of StateGroup objects.');
             }
 
-            if (!isset($group['state'])) {
-                continue;
-            }
+            $group = $group->toArray();
 
-            $stateMeta = static::normalizedStateMeta($group['state'], $statesClass);
+            $stateMeta = static::normalizedStateMeta($group['state'], $statesEnum);
+
             $childrenMeta = array_map(
-                fn(UnitEnum|string $child) => static::normalizedStateMeta($child),
+                static fn(UnitEnum|string $child) => static::normalizedStateMeta($child),
                 $group['children'] ?? []
             );
 
-            static::$stateGroups[static::class][$stateMeta['key']] = [
+
+            $stateGroups[$stateMeta['key']] = [
                 'state' => $stateMeta,
                 'children' => $childrenMeta,
             ];
 
             foreach ($childrenMeta as $child) {
-                static::$stateGroupParents[static::class][$child['key']] = $stateMeta;
+                $stateGroupParents[$child['key']] = $stateMeta;
             }
         }
+
+        WorkflowCache::rememberIfMissing(static::class, 'stateGroups',
+            static fn() => $stateGroups);
+
+        WorkflowCache::rememberIfMissing(static::class, 'stateGroupParents',
+            static fn() => $stateGroupParents);
     }
 
     private static function normalizedStateMeta(UnitEnum|string $state, ?string $defaultEnum = null): array

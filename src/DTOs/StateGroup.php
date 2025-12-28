@@ -6,14 +6,14 @@ use UnitEnum;
 
 final class StateGroup
 {
-    private UnitEnum|string|null $state = null;
+    private UnitEnum|string $state;
 
     /**
      * @var array<int, UnitEnum|string>
      */
     private array $children = [];
 
-    private function __construct(UnitEnum|string|null $state = null)
+    private function __construct(UnitEnum|string $state)
     {
         $this->state = $state;
     }

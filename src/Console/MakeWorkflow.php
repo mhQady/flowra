@@ -2,16 +2,16 @@
 
 namespace Flowra\Console;
 
+use Flowra\Support\WorkflowPathResolver;
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Str;
 use RuntimeException;
-use Str;
 
 class MakeWorkflow extends Command
 {
     protected $signature = 'flowra:make-workflow
         {name : Workflow name, e.g. Main}
-        {--path=app/Workflows : Base directory where the workflow folder will be created}
         {--namespace=App\\Workflows : Root namespace for generated classes}
         {--force : Overwrite existing files}';
 
@@ -29,10 +29,10 @@ class MakeWorkflow extends Command
 
         $snake = Str::snake($studly);
 
-        $dir = base_path(Str::finish($this->option('path'), '/')).$studly;
+        $dir = WorkflowPathResolver::workflowDirectory($studly);
         $namespaceRoot = rtrim($this->option('namespace'), '\\');
         $namespace = $namespaceRoot.'\\'.$studly;
-        $statesClass = $studly.'States';
+        $statesEnum = $studly.'States';
 
         $this->__creatWorkflowDirectory($files, $dir);
 
@@ -40,7 +40,7 @@ class MakeWorkflow extends Command
             '{{ namespace }}' => $namespace,
             '{{ root_namespace }}' => $namespaceRoot,
             '{{ class }}' => $studly,
-            '{{ states_class }}' => $statesClass,
+            '{{ states_class }}' => $statesEnum,
             '{{ flow_key }}' => $snake,
             '{{ flow_title }}' => Str::of($snake)->replace('_', ' ')->title(),
         ];
@@ -49,7 +49,7 @@ class MakeWorkflow extends Command
         $renderedStates = strtr($this->__getStub('workflowstates.stub'), $replacements);
 
         $workflowFileName = $studly.'.php';
-        $statesFileName = $statesClass.'.php';
+        $statesFileName = $statesEnum.'.php';
 
         $written = 0;
         $written += $this->__putFile($files, $dir.'/'.$workflowFileName, $renderedWorkflow,
@@ -62,7 +62,7 @@ class MakeWorkflow extends Command
             return self::SUCCESS;
         }
 
-        $this->info("✅ Workflow generated: {$namespace}\\{$studly} (and {$statesClass})");
+        $this->info("✅ Workflow generated: {$namespace}\\{$studly} (and {$statesEnum})");
         $this->line("<comment>• Folder:</comment> {$dir}");
         $this->line("<comment>• Files:</comment>  $workflowFileName, $statesFileName");
 

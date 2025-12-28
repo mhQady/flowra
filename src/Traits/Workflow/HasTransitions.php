@@ -3,39 +3,48 @@
 namespace Flowra\Traits\Workflow;
 
 use Flowra\DTOs\Transition;
-use Illuminate\Support\Str;
+use Flowra\Support\WorkflowCache;
 
 trait HasTransitions
 {
-    use CanApplyTransitions;
+    use CanApplyTransitions, CanApplyBulkTransitions;
 
-    private static array $transitions = [];
+    private array $transitions = [];
 
     public static function bootHasTransitions(): void
     {
+        $transitions = [];
+
         foreach (static::transitionsSchema() as $t) {
-            if (!$t instanceof Transition)
+
+            if (!$t instanceof Transition) {
                 continue;
+            }
 
-            static::$transitions[static::class][$t->key] = $t;
+            $transitions[$t->key] = $t;
         }
+
+        WorkflowCache::rememberIfMissing(static::class, 'transitions',
+            static fn() => $transitions);
     }
 
-    public static function transitions(): array
+    public function initializeHasTransitions(): void
     {
-        static::bootIfNotBooted();
-
-        if (!isset(static::$transitions[static::class]))
-            return [];
-
-        return static::$transitions[static::class];
+        $this->transitions = WorkflowCache::get(static::class, 'transitions');
     }
 
-    protected function __accessCachedTransitionAsProperty(string $name): ?Transition
+    public function transitions(): array
     {
-        $name = Str::of($name)->snake()->toString();
-        if (in_array($name, array_keys(static::$transitions[static::class]))) {
-            $t = self::$transitions[static::class][$name];
+        return $this->transitions;
+    }
+
+    protected function accessCachedTransitionAsProperty(string $name): ?Transition
+    {
+        $name = str_replace([' ', '-'], '_', $name);
+        $name = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $name));
+
+        if (array_key_exists($name, $this->transitions)) {
+            $t = $this->transitions[$name];
             $t->workflow($this);
             return $t;
         }
