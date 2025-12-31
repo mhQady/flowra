@@ -21,11 +21,11 @@ trait CanApplyTransitions
      */
     public function apply(Transition $t): static
     {
-        $this->__evaluateGuards($t);
+        $this->evaluateGuards($t);
 
         $this->validateTransitionStructure($t);
 
-        $status = $this->__save($t);
+        $status = $this->save($t);
 
         $this->hydrateStates($status);
 
@@ -37,13 +37,16 @@ trait CanApplyTransitions
     /**
      * @throws Throwable
      */
-    public function jumpTo(UnitEnum|string|int $state, string $resetName = 'reset'): static
-    {
-        [$toState, $fromState] = $this->__validateJumpApplicable($state);
+    public function jumpTo(
+        UnitEnum|string|int $state,
+        string $jumpName = 'reset',
+        ?int $appliedBy = null,
+    ): static {
+        [$toState, $fromState] = $this->validateJumpApplicable($state);
 
-        $resetObj = new Jump($resetName, $fromState, $toState, $this);
+        $resetObj = new Jump($jumpName, $fromState, $toState, $this, $appliedBy);
 
-        $this->__save($resetObj);
+        $this->save($resetObj);
 
         return $this;
     }
@@ -53,13 +56,13 @@ trait CanApplyTransitions
      * @return Status|null
      * @throws Throwable
      */
-    private function __save(Transition $t): ?Status
+    private function save(Transition $t): ?Status
     {
         return DB::transaction(function () use ($t): Status {
 
-            $status = $this->__saveStatus($t);
+            $status = $this->saveStatus($t);
 
-            $this->__appendToRegistry($t);
+            $this->appendToRegistry($t);
 
             return $status;
         });
@@ -82,7 +85,7 @@ trait CanApplyTransitions
         }
 
         # check if transition is already defined in workflow #
-        if (!array_key_exists($t->key, $this->transitions())) {
+        if (!array_key_exists($t->key, $this->transitions)) {
             throw new ApplyTransitionException(__(
                 'flowra::flowra.transition_not_registered_for_workflow',
                 ['transition' => $t->key, 'workflow' => $this::class]
@@ -112,18 +115,19 @@ trait CanApplyTransitions
      * @param  UnitEnum|int|string  $state
      * @return array
      */
-    private function __validateJumpApplicable(UnitEnum|int|string $state): array
+    private function validateJumpApplicable(UnitEnum|int|string $state): array
     {
         if (!($state instanceof UnitEnum)) {
             $state = $this->statesEnum::tryFrom($state);
         }
 
         if (!($state instanceof $this->statesEnum)) {
-            throw new ApplyJumpException('State is not valid, state must be of type ('.$this->statesEnum::class.')');
+            throw new ApplyJumpException(__('flowra::flowra.state_required_on_jump',
+                ['state' => $this->statesEnum]));
         }
 
         if (!($fromStatus = $this->currentState)) {
-            throw new ApplyJumpException('From state is not valid, state must not be (<fg=yellow;options=bold>null</>) on jump');
+            throw new ApplyJumpException('From state is not valid, state must not be (null) on jump');
         }
 
         return [$state, $fromStatus];
@@ -133,7 +137,7 @@ trait CanApplyTransitions
      * @param  Transition  $t
      * @return void
      */
-    private function __saveStatus(Transition $t): Status
+    private function saveStatus(Transition $t): Status
     {
         return Status::query()->updateOrCreate(
             [
@@ -157,7 +161,7 @@ trait CanApplyTransitions
      * @param  Transition  $t
      * @return void
      */
-    private function __appendToRegistry(Transition $t): void
+    private function appendToRegistry(Transition $t): void
     {
         Registry::query()->create([
             'owner_type' => $this->model->getMorphClass(),

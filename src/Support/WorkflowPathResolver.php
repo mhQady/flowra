@@ -11,7 +11,7 @@ class WorkflowPathResolver
      */
     public static function basePath(): string
     {
-        $path = config('flowra.workflows_path', 'app/workflows');
+        $path = config('flowra.workflows_path', 'app/Workflows');
 
         if (!Str::startsWith($path, ['/', '\\']) && !preg_match('/^[A-Za-z]:\\\\/', $path)) {
             $path = base_path($path);

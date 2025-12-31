@@ -20,8 +20,11 @@ trait CanApplyBulkTransitions
      * @return BulkTransitionResult
      * @throws Throwable
      */
-    public function applyMany(iterable $targets, string|Transition $transition, array $options = []): BulkTransitionResult
-    {
+    public function applyMany(
+        iterable $targets,
+        string|Transition $transition,
+        array $options = []
+    ): BulkTransitionResult {
         $continue = (bool) ($options['continue_on_error'] ?? false);
         $appliedBy = $options['applied_by'] ?? null;
         $comments = $options['comments'] ?? [];
@@ -46,7 +49,7 @@ trait CanApplyBulkTransitions
             }
 
             try {
-                $workflow->__evaluateGuards($t);
+                $workflow->evaluateGuards($t);
                 $workflow->validateTransitionStructure($t);
 
                 $status = $workflow->__save($t);

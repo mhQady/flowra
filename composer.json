@@ -1,21 +1,23 @@
 {
   "name": "mhqady/flowra",
   "type": "library",
-  "description": "Flowra is a database-driven workflow engine for Laravel applications. It lets you describe business processes as workflows composed of typed states, transitions, guards, actions, and state group all persisted in your database so processes can evolve without redeploying code.",
+  "description": "Flowra is a flexible, database-driven workflow and state machine engine for Laravel. It supports workflows, typed states, transitions, guards, actions, scopes, and dynamic workflow loading, enabling complex business processes to evolve at runtime without redeploying code.",
   "keywords": [
     "laravel",
     "workflow",
-    "laravel workflow",
-    "state machine",
-    "status",
     "workflow engine",
-    "Hierarchical State Machine",
+    "state machine",
+    "finite state machine",
+    "hierarchical state machine",
+    "business process",
+    "process automation",
+    "laravel package",
     "flowra"
   ],
   "license": "MIT",
   "authors": [
     {
-      "name": "Mohamed AlQady",
+      "name": "Mohamed AlQadi",
       "email": "mh.qady@gmail.com"
     }
   ],
@@ -24,7 +26,6 @@
     "illuminate/support": "^v12.0.0"
   },
   "require-dev": {
-    "orchestra/testbench": "^10.4",
     "pestphp/pest": "^4.0"
   },
   "autoload": {
@@ -60,19 +61,7 @@
     }
   },
   "scripts": {
-    "post-autoload-dump": [
-      "@prepare"
-    ],
-    "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
-    "prepare": "@php vendor/bin/testbench package:discover --ansi",
-    "build": "@php vendor/bin/testbench workbench:build --ansi",
-    "serve": [
-      "Composer\\Config::disableProcessTimeout",
-      "@build",
-      "@php vendor/bin/testbench serve --ansi"
-    ],
-    "test": "vendor/bin/pest --colors=always",
-    "art": "vendor/bin/testbench --ansi"
+    "test": "vendor/bin/pest --colors=always"
   },
   "config": {
     "allow-plugins": {

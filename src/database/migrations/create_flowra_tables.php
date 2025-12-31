@@ -17,17 +17,6 @@ return new class extends Migration {
         Schema::create(config('flowra.tables.registry', 'statuses_registry'), function (Blueprint $table) {
             $this->commonSchema($table);
         });
-
-        Schema::create(config('flowra.tables.definitions', 'workflow_definitions'), function (Blueprint $table) {
-            $table->id();
-            $table->string('workflow');
-            $table->string('version');
-            $table->json('definition')->nullable();
-            $table->timestamp('active_at')->nullable();
-            $table->timestamps();
-
-            $table->unique(['workflow', 'version'], 'workflow_definitions_workflow_version_uq');
-        });
     }
 
     public function down(): void

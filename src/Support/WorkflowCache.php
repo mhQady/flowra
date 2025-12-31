@@ -13,64 +13,48 @@ class WorkflowCache
             return null;
         }
 
-        return Cache::store(config('flowra.cache_driver'))->get(self::k($workflow, $key));
-    }
-
-    /**
-     * Cache the computed value only when the key is missing, without reading existing payloads.
-     */
-    public static function rememberIfMissing(string $workflow, string $key, \Closure $callback): void
-    {
-        if (!config('flowra.cache_workflows')) {
-            return;
-        }
-
         $store = Cache::store(config('flowra.cache_driver'));
         $cacheKey = self::k($workflow, $key);
 
         try {
-            if ($store->has($cacheKey)) {
-                return;
-            }
+            return $store->get($cacheKey);
         } catch (\Throwable $e) {
-            // Clear potentially broken entry and proceed to rebuild it
+            // Drop corrupted entries and continue without cached value
             $store->forget($cacheKey);
         }
 
-        $value = $callback();
-
-        try {
-            $store->forever($cacheKey, $value);
-        } catch (\Throwable $e) {
-            // If writing fails, nothing else to do
-        }
+        return null;
     }
 
     public static function remember(string $workflow, string $key, \Closure $callback): mixed
     {
-//        if (!config('flowra.cache_workflows')) {
-//            return $callback();
-//        }
+        // Always compute the value so callers can hydrate their properties even if caching is disabled.
+        $cacheEnabled = config('flowra.cache_workflows');
 
-        $store = Cache::store(config('flowra.cache_driver'));
         $cacheKey = self::k($workflow, $key);
+        $store = $cacheEnabled ? Cache::store(config('flowra.cache_driver')) : null;
 
-        // Guard against stale payloads (e.g. enum renames) causing unserialize errors
-        try {
-            if ($store->has($cacheKey)) {
-                return $store->get($cacheKey);
+        if ($cacheEnabled && $store) {
+            // Guard against stale payloads (e.g. enum renames) causing unserialize errors
+            try {
+                if ($store->has($cacheKey)) {
+                    return $store->get($cacheKey);
+                }
+            } catch (\Throwable $e) {
+                // If reading failed, remove the broken entry and rebuild it
+                $store->forget($cacheKey);
             }
-        } catch (\Throwable $e) {
-            // If reading failed, remove the broken entry and rebuild it
-            $store->forget($cacheKey);
         }
 
+        // Guard against stale payloads (e.g. enum renames) causing unserialize errors
         $value = $callback();
 
-        try {
-            $store->forever($cacheKey, $value);
-        } catch (\Throwable $e) {
-            // If writing fails, just return the fresh value without caching
+        if ($cacheEnabled && $store) {
+            try {
+                $store->forever($cacheKey, $value);
+            } catch (\Throwable $e) {
+                // If writing fails, just return the fresh value without caching
+            }
         }
 
         return $value;
@@ -92,7 +76,10 @@ class WorkflowCache
         }
 
         Cache::store(config('flowra.cache_driver'))->forget(self::k($workflow, 'transitions'));
+        Cache::store(config('flowra.cache_driver'))->forget(self::k($workflow, 'statesEnum'));
         Cache::store(config('flowra.cache_driver'))->forget(self::k($workflow, 'states'));
+        Cache::store(config('flowra.cache_driver'))->forget(self::k($workflow, 'stateGroups'));
+        Cache::store(config('flowra.cache_driver'))->forget(self::k($workflow, 'stateGroupParents'));
     }
 
     public static function forgetAll(): array
@@ -101,52 +88,17 @@ class WorkflowCache
             return [];
         }
 
-        // This implementation assumes Redis or Database cache.
-        // File / Memcached drivers cannot safely list keys.
         $store = config('flowra.cache_driver');
         $workflows = [];
 
         // Redis driver
         if ($store === 'redis') {
-            $cursor = 0;
-
-            do {
-                [$cursor, $keys] = Redis::scan(
-                    $cursor,
-                    'MATCH',
-                    'flowra:workflow:*:*',
-                    'COUNT',
-                    100
-                );
-
-                foreach ($keys as $key) {
-                    // Extract workflow name from: flowra:workflow:{workflow}:{item}
-                    $parts = explode(':', $key);
-                    $workflow = $parts[2] ?? null;
-
-                    if ($workflow) {
-                        $workflows[$workflow] = true;
-                        Redis::del($key);
-                    }
-                }
-            } while ($cursor != 0);
+            static::clearRedisCache($workflows);
         }
 
         // Database cache driver
         if ($store === 'database') {
-            $keys = \DB::table('cache')
-                ->where('key', 'like', 'flowra:workflow:%')
-                ->pluck('key');
-
-            foreach ($keys as $key) {
-                $parts = explode(':', $key);
-                $workflow = $parts[2] ?? null;
-
-                if ($workflow) {
-                    $workflows[$workflow] = true;
-                    Cache::store($store)->forget($key);
-                }
-            }
+            static::clearDatabaseCache($workflows, $store);
         }
 
         return array_keys($workflows);
@@ -155,5 +107,36 @@ class WorkflowCache
     private static function k(string $workflow, string $key): string
     {
         return "flowra:workflow:{$workflow}:{$key}";
+    }
+
+    private static function clearRedisCache(array &$workflows): void
+    {
+        $cursor = 0;
+
+        do {
+
+            [$cursor, $keys] = Redis::scan($cursor, 'MATCH',
+                'flowra:workflow:*:*',
+                'COUNT',
+                100
+            );
+
+            foreach ($keys as $key) {
+                // Extract workflow name from: flowra:workflow:{workflow}:{item}
+                $parts = explode(':', $key);
+                $workflow = $parts[2] ?? null;
+
+                if ($workflow) {
+                    $workflows[$workflow] = true;
+                    Redis::del($key);
+                }
+            }
+        } while ($cursor !== 0);
+    }
+
+    private static function clearDatabaseCache(array &$workflows, string $store): void
+    {
+        \DB::table('cache')->where('key', 'like', '%flowra:workflow:%')
+            ->delete();
     }
 }

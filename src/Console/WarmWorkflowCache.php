@@ -14,7 +14,7 @@ class WarmWorkflowCache extends Command
     public function handle(): int
     {
         $targets = $this->argument('workflow');
-        $workflows = !empty($targets) ? $targets : (config('flowra.workflows') ?? []);
+        $workflows = !empty($targets) ? $targets : [];
 
         if (empty($workflows)) {
             $this->info('No workflows specified or configured to warm.');
@@ -22,6 +22,8 @@ class WarmWorkflowCache extends Command
         }
 
         foreach ($workflows as $workflow) {
+            $workflow = config('flowra.workflows_namespace')."\\$workflow\\$workflow";
+
             if (!class_exists($workflow) || !is_subclass_of($workflow, BaseWorkflow::class)) {
                 $this->warn("Skipping {$workflow}: not found or not a BaseWorkflow.");
                 continue;
@@ -31,6 +33,7 @@ class WarmWorkflowCache extends Command
                 // hydrate static caches
                 $workflow::states();
                 $workflow::transitions();
+//                $workflow::stateGroups();
                 $this->line("Warmed cache for {$workflow}");
             } catch (\Throwable $e) {
                 WorkflowCache::forget($workflow);

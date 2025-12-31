@@ -8,7 +8,7 @@ use Flowra\Exceptions\GuardDeniedException;
 
 trait CanEvaluateGuards
 {
-    private function __evaluateGuards(Transition $t): void
+    private function evaluateGuards(Transition $t): void
     {
         foreach ($t->guards() as $g) {
 

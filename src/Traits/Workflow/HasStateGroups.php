@@ -5,30 +5,29 @@ namespace Flowra\Traits\Workflow;
 use BackedEnum;
 use Flowra\DTOs\StateGroup;
 use Flowra\Support\WorkflowCache;
-use http\Exception\RuntimeException;
+use RuntimeException;
 use UnitEnum;
 
 trait HasStateGroups
 {
     private array $stateGroups = [];
     private array $stateGroupParents = [];
+    protected static array $cachedStateGroups = [];
+    protected static array $cachedStateGroupParents = [];
 
     protected static function bootHasStateGroups(): void
     {
-        static::fillStateGroups();
+        static::cachedStateGroups();
     }
 
     protected function initializeHasStateGroups(): void
     {
-        $this->stateGroups = WorkflowCache::get(static::class, 'stateGroups');
-        $this->stateGroupParents = WorkflowCache::get(static::class, 'stateGroupParents');
+        [$this->stateGroups, $this->stateGroupParents] = static::cachedStateGroups();
     }
 
-    public function stateGroups(): array
+    public static function stateGroups(): array
     {
-//        static::bootIfNotBooted();
-
-        return $this->stateGroups;
+        return static::cachedStateGroups()[0];
     }
 
     public static function stateGroupFor(UnitEnum|string|null $state): ?array
@@ -37,11 +36,10 @@ trait HasStateGroups
             return null;
         }
 
-        static::bootIfNotBooted();
-
         $key = static::stateKey($state);
+        [$stateGroups] = static::cachedStateGroups();
 
-        return static::$stateGroups[static::class][$key] ?? null;
+        return $stateGroups[$key] ?? null;
     }
 
     public static function stateGroupChildren(UnitEnum|string $state): array
@@ -57,17 +55,18 @@ trait HasStateGroups
 
     public static function stateParentGroup(UnitEnum|string $state): ?array
     {
-        static::bootIfNotBooted();
-
         $key = static::stateKey($state);
+        [, $parents] = static::cachedStateGroups();
 
-        $parentKey = static::$stateGroupParents[static::class][$key]['key'] ?? null;
+        $parentKey = $parents[$key]['key'] ?? null;
 
         if (!$parentKey) {
             return null;
         }
 
-        return static::$stateGroups[static::class][$parentKey] ?? null;
+        [$stateGroups] = static::cachedStateGroups();
+
+        return $stateGroups[$parentKey] ?? null;
     }
 
     public static function isGroupedState(UnitEnum|string $state): bool
@@ -77,17 +76,67 @@ trait HasStateGroups
 
     public static function hasParentGroup(UnitEnum|string $state): bool
     {
-        static::bootIfNotBooted();
-
         $key = static::stateKey($state);
+        [, $parents] = static::cachedStateGroups();
 
-        return isset(static::$stateGroupParents[static::class][$key]);
+        return isset($parents[$key]);
     }
 
-    private static function fillStateGroups(): void
+    /**
+     * @return array{0: array<string, array>, 1: array<string, array>}
+     */
+    private static function cachedStateGroups(): array
     {
-        $statesEnum = WorkflowCache::get(static::class, 'statesEnum');
+        $workflow = static::class;
 
+        if (!isset(static::$cachedStateGroups[$workflow], static::$cachedStateGroupParents[$workflow])) {
+            [$stateGroups, $stateGroupParents] = static::buildStateGroupCache();
+
+            static::$cachedStateGroups[$workflow] = $stateGroups;
+            static::$cachedStateGroupParents[$workflow] = $stateGroupParents;
+        }
+
+        return [static::$cachedStateGroups[$workflow], static::$cachedStateGroupParents[$workflow]];
+    }
+
+    /**
+     * @return array{0: array<string, array>, 1: array<string, array>}
+     */
+    private static function buildStateGroupCache(): array
+    {
+        $statesEnum = static::cacheStates()[0];
+        $compiled = null;
+
+        $stateGroups = WorkflowCache::remember(
+            static::class,
+            'stateGroups',
+            static function () use ($statesEnum, &$compiled) {
+                $compiled ??= static::compileStateGroups($statesEnum);
+                return $compiled['groups'];
+            }
+        );
+
+        $stateGroupParents = WorkflowCache::remember(
+            static::class,
+            'stateGroupParents',
+            static function () use ($statesEnum, &$compiled) {
+                $compiled ??= static::compileStateGroups($statesEnum);
+                return $compiled['parents'];
+            }
+        );
+
+        return [
+            is_array($stateGroups) ? $stateGroups : [],
+            is_array($stateGroupParents) ? $stateGroupParents : [],
+        ];
+    }
+
+    /**
+     * @param  class-string<UnitEnum>  $statesEnum
+     * @return array{groups: array<string, array>, parents: array<string, array>}
+     */
+    private static function compileStateGroups(string $statesEnum): array
+    {
         $groups = [];
 
         if (method_exists($statesEnum, 'groups')) {
@@ -123,11 +172,7 @@ trait HasStateGroups
             }
         }
 
-        WorkflowCache::rememberIfMissing(static::class, 'stateGroups',
-            static fn() => $stateGroups);
-
-        WorkflowCache::rememberIfMissing(static::class, 'stateGroupParents',
-            static fn() => $stateGroupParents);
+        return ['groups' => $stateGroups, 'parents' => $stateGroupParents];
     }
 
     private static function normalizedStateMeta(UnitEnum|string $state, ?string $defaultEnum = null): array

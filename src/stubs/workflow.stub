@@ -2,8 +2,7 @@
 
 namespace {{ namespace }};
 
-use Flowra\Attributes\TransitionMeta;
-use Flowra\Flows\BaseWorkflow;
+use Flowra\Concretes\BaseWorkflow;
 use Flowra\Contracts\BaseWorkflowContract;
 use Flowra\DTOs\Transition;
 
