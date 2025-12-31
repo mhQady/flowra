@@ -31,7 +31,7 @@ enum MainWorkflowStates: string
 
     case INIT = 'init';
     case DRAFT = 'draft';
-    case READY_FOR_AUDITING = 'ready_for_auditing';
+    case PUBLISHED = 'published';
     // ...
 
     public static function groups(): array
@@ -128,6 +128,32 @@ Flowra ships several artisan commands once registered through `FlowraServiceProv
 - `flowra:make-workflow` – scaffolds a workflow class and its states enum (with the `groups()` template).
 - `flowra:make-guard`, `flowra:make-action` – generate guard/action classes.
 - `flowra:list-workflow` – inspect registered workflows at runtime.
+- `flowra:export-workflow` – export any workflow to a Mermaid or PlantUML diagram (print to the console or write to disk).
+- `flowra:import-workflow` – convert a Mermaid/PlantUML diagram back into enum cases, transition snippets, and ready-to-use workflow/state files.
+
+```bash
+# print a Mermaid diagram
+php artisan flowra:export-workflow "Flowra\Flows\MainFlow\MainWorkflow"
+# ⇢ writes to storage/app/flowra/workflows/Flowra-Flows-MainFlow-MainWorkflow.mmd
+
+# save a PlantUML diagram to a file
+php artisan flowra:export-workflow "Flowra\Flows\MainFlow\MainWorkflow" \
+    --format=plantuml --output=storage/app/diagrams/main-workflow.puml
+
+# convert a Mermaid file into PHP snippets + workflow/state classes
+php artisan flowra:import-workflow "Flowra\Flows\MainFlow\MainWorkflow" \
+    --path=storage/app/flowra/workflows/Flowra-Flows-MainFlow-MainWorkflow.mmd \
+    --force  # overwrite the generated files if they already exist
+
+# or paste a diagram directly (finish with CTRL+D/CTRL+Z) and let Flowra resolve PSR-4 paths automatically
+cat diagram.mmd | php artisan flowra:import-workflow "App\Workflows\OrderWorkflow"
+
+# a snippets summary is still stored at storage/app/flowra/imports/<Workflow>-import.php unless you override --output
+```
+
+`flowra:import-workflow` always writes the workflow class and its states enum into the same directory defined by
+`config('flowra.workflows_path')` (default: `app/workflows/<Workflow>`). Update that config value to point Flowra at a
+different base directory for generated workflows.
 
 It also publishes config (`config/flowra.php`), migrations, stubs, and translations. After installing via Composer, run:
 
@@ -164,15 +190,6 @@ Context::query()
 ```
 
 State groups are automatically expanded or collapsed depending on whether you filter by a parent state or a child state.
-
----
-
-## 🤝 Contributing
-
-1. Fork & clone the repo.
-2. Run `composer install`.
-3. Use the provided Testbench setup for local testing.
-4. Submit pull requests with comprehensive descriptions/tests where possible.
 
 ---
 

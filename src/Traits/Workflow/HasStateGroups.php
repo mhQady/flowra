@@ -4,23 +4,30 @@ namespace Flowra\Traits\Workflow;
 
 use BackedEnum;
 use Flowra\DTOs\StateGroup;
+use Flowra\Support\WorkflowCache;
+use RuntimeException;
 use UnitEnum;
 
 trait HasStateGroups
 {
-    private static array $stateGroups = [];
-    private static array $stateGroupParents = [];
+    private array $stateGroups = [];
+    private array $stateGroupParents = [];
+    protected static array $cachedStateGroups = [];
+    protected static array $cachedStateGroupParents = [];
 
-    protected static function bootStateGroups(string $statesClass): void
+    protected static function bootHasStateGroups(): void
     {
-        static::__fillStateGroups($statesClass);
+        static::cachedStateGroups();
+    }
+
+    protected function initializeHasStateGroups(): void
+    {
+        [$this->stateGroups, $this->stateGroupParents] = static::cachedStateGroups();
     }
 
     public static function stateGroups(): array
     {
-        static::bootIfNotBooted();
-
-        return static::$stateGroups[static::class] ?? [];
+        return static::cachedStateGroups()[0];
     }
 
     public static function stateGroupFor(UnitEnum|string|null $state): ?array
@@ -29,11 +36,10 @@ trait HasStateGroups
             return null;
         }
 
-        static::bootIfNotBooted();
-
         $key = static::stateKey($state);
+        [$stateGroups] = static::cachedStateGroups();
 
-        return static::$stateGroups[static::class][$key] ?? null;
+        return $stateGroups[$key] ?? null;
     }
 
     public static function stateGroupChildren(UnitEnum|string $state): array
@@ -49,17 +55,18 @@ trait HasStateGroups
 
     public static function stateParentGroup(UnitEnum|string $state): ?array
     {
-        static::bootIfNotBooted();
-
         $key = static::stateKey($state);
+        [, $parents] = static::cachedStateGroups();
 
-        $parentKey = static::$stateGroupParents[static::class][$key]['key'] ?? null;
+        $parentKey = $parents[$key]['key'] ?? null;
 
         if (!$parentKey) {
             return null;
         }
 
-        return static::$stateGroups[static::class][$parentKey] ?? null;
+        [$stateGroups] = static::cachedStateGroups();
+
+        return $stateGroups[$parentKey] ?? null;
     }
 
     public static function isGroupedState(UnitEnum|string $state): bool
@@ -69,45 +76,103 @@ trait HasStateGroups
 
     public static function hasParentGroup(UnitEnum|string $state): bool
     {
-        static::bootIfNotBooted();
-
         $key = static::stateKey($state);
+        [, $parents] = static::cachedStateGroups();
 
-        return isset(static::$stateGroupParents[static::class][$key]);
+        return isset($parents[$key]);
     }
 
-    private static function __fillStateGroups(string $statesClass): void
+    /**
+     * @return array{0: array<string, array>, 1: array<string, array>}
+     */
+    private static function cachedStateGroups(): array
+    {
+        $workflow = static::class;
+
+        if (!isset(static::$cachedStateGroups[$workflow], static::$cachedStateGroupParents[$workflow])) {
+            [$stateGroups, $stateGroupParents] = static::buildStateGroupCache();
+
+            static::$cachedStateGroups[$workflow] = $stateGroups;
+            static::$cachedStateGroupParents[$workflow] = $stateGroupParents;
+        }
+
+        return [static::$cachedStateGroups[$workflow], static::$cachedStateGroupParents[$workflow]];
+    }
+
+    /**
+     * @return array{0: array<string, array>, 1: array<string, array>}
+     */
+    private static function buildStateGroupCache(): array
+    {
+        $statesEnum = static::cacheStates()[0];
+        $compiled = null;
+
+        $stateGroups = WorkflowCache::remember(
+            static::class,
+            'stateGroups',
+            static function () use ($statesEnum, &$compiled) {
+                $compiled ??= static::compileStateGroups($statesEnum);
+                return $compiled['groups'];
+            }
+        );
+
+        $stateGroupParents = WorkflowCache::remember(
+            static::class,
+            'stateGroupParents',
+            static function () use ($statesEnum, &$compiled) {
+                $compiled ??= static::compileStateGroups($statesEnum);
+                return $compiled['parents'];
+            }
+        );
+
+        return [
+            is_array($stateGroups) ? $stateGroups : [],
+            is_array($stateGroupParents) ? $stateGroupParents : [],
+        ];
+    }
+
+    /**
+     * @param  class-string<UnitEnum>  $statesEnum
+     * @return array{groups: array<string, array>, parents: array<string, array>}
+     */
+    private static function compileStateGroups(string $statesEnum): array
     {
         $groups = [];
 
-        if (method_exists($statesClass, 'groups')) {
-            $groups = $statesClass::groups();
+        if (method_exists($statesEnum, 'groups')) {
+            $groups = $statesEnum::groups();
         }
 
+        $stateGroups = [];
+        $stateGroupParents = [];
+
         foreach ($groups as $group) {
-            if ($group instanceof StateGroup) {
-                $group = $group->toArray();
+
+            if (!$group instanceof StateGroup) {
+                throw new RuntimeException('groups() must return an array of StateGroup objects.');
             }
 
-            if (!isset($group['state'])) {
-                continue;
-            }
+            $group = $group->toArray();
 
-            $stateMeta = static::normalizedStateMeta($group['state'], $statesClass);
+            $stateMeta = static::normalizedStateMeta($group['state'], $statesEnum);
+
             $childrenMeta = array_map(
-                fn(UnitEnum|string $child) => static::normalizedStateMeta($child),
+                static fn(UnitEnum|string $child) => static::normalizedStateMeta($child),
                 $group['children'] ?? []
             );
 
-            static::$stateGroups[static::class][$stateMeta['key']] = [
+
+            $stateGroups[$stateMeta['key']] = [
                 'state' => $stateMeta,
                 'children' => $childrenMeta,
             ];
 
             foreach ($childrenMeta as $child) {
-                static::$stateGroupParents[static::class][$child['key']] = $stateMeta;
+                $stateGroupParents[$child['key']] = $stateMeta;
             }
         }
+
+        return ['groups' => $stateGroups, 'parents' => $stateGroupParents];
     }
 
     private static function normalizedStateMeta(UnitEnum|string $state, ?string $defaultEnum = null): array

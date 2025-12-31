@@ -1,0 +1,45 @@
+stateDiagram-v2
+    % Flowra\Flows\MainFlow\MainWorkflow
+    state "PREPARE_APPLICATION_INFO (prepare_application_info)" as prepare_application_info {
+        state "OWNER_INFO_ENTERED (owner_info_entered)" as owner_info_entered
+        state "CERTIFICATES_INFO_ENTERED (certificates_info_entered)" as certificates_info_entered
+        state "BUILDINGS_INFO_ENTERED (buildings_info_entered)" as buildings_info_entered
+        state "INSPECTION_REPORT_INFO_ENTERED (inspection_report_info_entered)" as inspection_report_info_entered
+        state "SENT (sent)" as sent
+    }
+    state "INIT (init)" as init
+    state "CANCELLED_BY_SURVEYOR (cancelled_by_surveyor)" as cancelled_by_surveyor
+    state "WAITING_ENGOFFICE_CREDENCE (waiting_engoffice_credence)" as waiting_engoffice_credence
+    state "READY_FOR_AUDITING (ready_for_auditing)" as ready_for_auditing
+    state "CANCELLED_BY_ENGOFFICE (cancelled_by_engoffice)" as cancelled_by_engoffice
+    state "SENT_BACK_TO_SURVEYOR_FOR_REVISION (sent_back_to_surveyor_for_revision)" as sent_back_to_surveyor_for_revision
+    state "UNDER_AUDITING (under_auditing)" as under_auditing
+    state "READY_FOR_PROCESSING (ready_for_processing)" as ready_for_processing
+    state "UNDER_PROCESSING (under_processing)" as under_processing
+    state "READY_FOR_OPERATIONS_MANAGER_REVISION (ready_for_operations_manager_revision)" as ready_for_operations_manager_revision
+    state "SENT_BACK_TO_AUDITOR_FOR_REVISION (sent_back_to_auditor_for_revision)" as sent_back_to_auditor_for_revision
+    state "WAITING_FOR_INVOICE_PAYMENT (waiting_for_invoice_payment)" as waiting_for_invoice_payment
+    state "SENT_BACK_TO_PROCESSOR_FOR_REVISION (sent_back_to_processor_for_revision)" as sent_back_to_processor_for_revision
+
+    init --> owner_info_entered : initiating
+    owner_info_entered --> certificates_info_entered : filling_certificates_data
+    certificates_info_entered --> buildings_info_entered : filling_buildings_data
+    buildings_info_entered --> inspection_report_info_entered : filling_inspection_report_data
+    inspection_report_info_entered --> waiting_engoffice_credence : sending_for_engoffice_credence
+    sent_back_to_surveyor_for_revision --> cancelled_by_surveyor : cancelling_by_surveyor_while_editing
+    waiting_engoffice_credence --> ready_for_auditing : sending_for_auditing
+    waiting_engoffice_credence --> cancelled_by_engoffice : cancelling_by_engOffice
+    waiting_engoffice_credence --> sent_back_to_surveyor_for_revision : engoffice_send_back_to_surveyor_for_revision
+    ready_for_auditing --> under_auditing : assigning_to_auditor
+    under_auditing --> ready_for_processing : sending_for_processing
+    under_auditing --> under_processing : sending_for_processing_to_active_processor
+    waiting_engoffice_credence --> under_auditing : sending_for_audit_to_active_auditor
+    under_auditing --> sent_back_to_surveyor_for_revision : auditor_send_back_to_surveyor_for_revision
+    ready_for_processing --> under_processing : assigning_to_processor
+    under_processing --> ready_for_operations_manager_revision : sending_for_operations_manager_revision
+    under_processing --> sent_back_to_surveyor_for_revision : processor_send_back_to_surveyor_for_revision
+    under_processing --> sent_back_to_auditor_for_revision : processor_send_back_to_auditor_for_revision
+    ready_for_operations_manager_revision --> waiting_for_invoice_payment : issuing_invoice
+    ready_for_operations_manager_revision --> sent_back_to_surveyor_for_revision : operations_manager_send_back_to_surveyor_for_revision
+    ready_for_operations_manager_revision --> sent_back_to_auditor_for_revision : operations_manager_send_back_to_auditor_for_revision
+    ready_for_operations_manager_revision --> sent_back_to_processor_for_revision : operations_manager_send_back_to_processor_for_revision

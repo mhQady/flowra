@@ -10,7 +10,8 @@ use Flowra\Enums\TransitionTypesEnum;
 use Throwable;
 use UnitEnum;
 
-class Transition implements \JsonSerializable
+class Transition
+//class Transition implements \JsonSerializable
 {
     /**
      * @param $guards  array<Closure|GuardContract|class-string<GuardContract>>
@@ -104,12 +105,12 @@ class Transition implements \JsonSerializable
         return $this->actions;
     }
 
-    public function jsonSerialize(): array
-    {
-        return [
-            'key' => $this->key,
-            'from' => $this->from,
-            'to' => $this->to,
-        ];
-    }
+//    public function jsonSerialize(): array
+//    {
+//        return [
+//            'key' => $this->key,
+//            'from' => $this->from,
+//            'to' => $this->to,
+//        ];
+//    }
 }

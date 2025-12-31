@@ -2,16 +2,16 @@
 
 namespace Flowra\Console;
 
+use Flowra\Support\WorkflowPathResolver;
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Str;
 use RuntimeException;
-use Str;
 
 class MakeWorkflow extends Command
 {
     protected $signature = 'flowra:make-workflow
-        {name : Workflow name, e.g. Main}
-        {--path=app/Workflows : Base directory where the workflow folder will be created}
+        {name : Workflow name, e.g. MainWorkflow}
         {--namespace=App\\Workflows : Root namespace for generated classes}
         {--force : Overwrite existing files}';
 
@@ -29,32 +29,32 @@ class MakeWorkflow extends Command
 
         $snake = Str::snake($studly);
 
-        $dir = base_path(Str::finish($this->option('path'), '/')).$studly;
+        $dir = WorkflowPathResolver::workflowDirectory($studly);
         $namespaceRoot = rtrim($this->option('namespace'), '\\');
         $namespace = $namespaceRoot.'\\'.$studly;
-        $statesClass = $studly.'States';
+        $statesEnum = $studly.'States';
 
-        $this->__creatWorkflowDirectory($files, $dir);
+        $this->creatWorkflowDirectory($files, $dir);
 
         $replacements = [
             '{{ namespace }}' => $namespace,
             '{{ root_namespace }}' => $namespaceRoot,
             '{{ class }}' => $studly,
-            '{{ states_class }}' => $statesClass,
+            '{{ states_class }}' => $statesEnum,
             '{{ flow_key }}' => $snake,
             '{{ flow_title }}' => Str::of($snake)->replace('_', ' ')->title(),
         ];
 
-        $renderedWorkflow = strtr($this->__getStub('workflow.stub'), $replacements);
-        $renderedStates = strtr($this->__getStub('workflowstates.stub'), $replacements);
+        $renderedWorkflow = strtr($this->getStub('workflow.stub'), $replacements);
+        $renderedStates = strtr($this->getStub('workflowstates.stub'), $replacements);
 
         $workflowFileName = $studly.'.php';
-        $statesFileName = $statesClass.'.php';
+        $statesFileName = $statesEnum.'.php';
 
         $written = 0;
-        $written += $this->__putFile($files, $dir.'/'.$workflowFileName, $renderedWorkflow,
+        $written += $this->putFile($files, $dir.'/'.$workflowFileName, $renderedWorkflow,
             (bool) $this->option('force'));
-        $written += $this->__putFile($files, $dir.'/'.$statesFileName, $renderedStates,
+        $written += $this->putFile($files, $dir.'/'.$statesFileName, $renderedStates,
             (bool) $this->option('force'));
 
         if ($written === 0) {
@@ -62,7 +62,7 @@ class MakeWorkflow extends Command
             return self::SUCCESS;
         }
 
-        $this->info("✅ Workflow generated: {$namespace}\\{$studly} (and {$statesClass})");
+        $this->info("✅ Workflow generated: {$namespace}\\{$studly} (and {$statesEnum})");
         $this->line("<comment>• Folder:</comment> {$dir}");
         $this->line("<comment>• Files:</comment>  $workflowFileName, $statesFileName");
 
@@ -78,9 +78,10 @@ class MakeWorkflow extends Command
      * @return string The contents of the stub file.
      * @throws RuntimeException If the stub file is not found.
      */
-    private function __getStub(string $name): string
+    private function getStub(string $name): string
     {
         $appStub = base_path('stubs/flowra/'.$name);
+
         if (is_file($appStub)) {
             $contents = file_get_contents($appStub);
             if ($contents !== false) {
@@ -112,14 +113,14 @@ class MakeWorkflow extends Command
      *
      * @return int The number of files written (0 or 1).
      */
-    private function __putFile(Filesystem $files, string $path, string $contents, bool $force): int
+    private function putFile(Filesystem $files, string $path, string $contents, bool $force): int
     {
-        if ($files->exists($path) && !$force) {
-            $this->warn("   • Skipped (exists): {$path}");
+        if (!$force && $files->exists($path)) {
+            $this->warn("• Skipped (exists): {$path}");
             return 0;
         }
         $files->put($path, $contents);
-        $this->line("   • Wrote: <info>{$path}</info>");
+        $this->line("• Wrote: <info>{$path}</info>");
         return 1;
     }
 
@@ -130,7 +131,7 @@ class MakeWorkflow extends Command
      * @param  string  $dir
      * @return void
      */
-    private function __creatWorkflowDirectory(Filesystem $files, string $dir): void
+    private function creatWorkflowDirectory(Filesystem $files, string $dir): void
     {
         if (!$files->isDirectory($dir)) {
             $files->makeDirectory($dir, 0777, true);

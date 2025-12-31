@@ -6,7 +6,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
-    
     public function up(): void
     {
         Schema::create(config('flowra.tables.statuses', 'statuses'), function (Blueprint $table) {
@@ -41,7 +40,7 @@ return new class extends Migration {
         $table->string('to');
         $table->json('comment')->nullable()->default(null);
         $table->foreignId('applied_by')->nullable();
-        //        $table->unsignedTinyInteger('type')->default(TransitionTypesEnum::TRANSITION->value);
+        $table->unsignedTinyInteger('type')->default(TransitionTypesEnum::TRANSITION->value);
 
         $table->timestamps();
     }

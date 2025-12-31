@@ -3,52 +3,51 @@
 namespace Flowra\Traits\Workflow;
 
 use Flowra\Models\Status;
+use Flowra\Support\WorkflowCache;
+use RuntimeException;
 use UnitEnum;
 
 trait HasStates
 {
-    private static array $statesClass = [];
-    private static array $states = [];
+//    use HasStateGroups;
 
-    use HasStateGroups;
+    /**
+     * @var string<UnitEnum>
+     */
+    private string $statesEnum;
+
+    /**
+     * @var array<UnitEnum>
+     */
+    private array $states = [];
+    protected static array $cachedStates = [];
+    protected static array $cachedStatesEnum = [];
 
     public Status|null $currentStatus = null;
     public ?UnitEnum $currentState = null;
 
+    /**
+     * @throws RuntimeException
+     */
     public static function bootHasStates(): void
     {
-        $statesClass = static::class.'States';
-
-        if (class_exists($statesClass) && enum_exists($statesClass)) {
-            static::$statesClass[static::class] = $statesClass;
-            static::__fillStatesProperty();
-            static::bootStateGroups($statesClass);
-        }
+        static::cacheStates();
     }
 
     public function initializeHasStates(): void
     {
+        [$this->statesEnum, $this->states] = static::cacheStates();
         $this->hydrateStates();
     }
 
     public static function states(): array
     {
-        static::bootIfNotBooted();
-
-        if (!isset(static::$states[static::class]))
-            return [];
-
-        return static::$states[static::class];
+        return static::cacheStates()[1];
     }
 
-    public static function statesClass()
+    public function statesEnum(): string
     {
-        static::bootIfNotBooted();
-
-        if (!isset(static::$statesClass[static::class]))
-            return [];
-
-        return static::$statesClass[static::class];
+        return $this->statesEnum;
     }
 
     protected function hydrateStates(?Status $status = null): void
@@ -58,18 +57,59 @@ trait HasStates
         }
 
         $this->currentStatus = $status;
-        $this->currentState = static::$statesClass[static::class]::tryFrom($status?->to);
+        $this->currentState = $this->statesEnum::tryFrom($status?->to);
     }
 
-    private static function __fillStatesProperty(): void
+//    public function currentStateGroup(): ?array
+//    {
+//        return static::stateGroupFor($this->currentState);
+//    }
+
+    /**
+     * Cache the states and states enum for a workflow.
+     *
+     * @return array{0: class-string<UnitEnum>, 1: array<UnitEnum>}
+     */
+    protected static function cacheStates(): array
     {
-        foreach ((static::$statesClass[static::class])::cases() as $case) {
-            static::$states[static::class][$case->value] = $case;
+        $workflow = static::class;
+
+        // Cache states schema & states enum if it is not already cached
+        if (!isset(static::$cachedStatesEnum[$workflow], static::$cachedStates[$workflow])) {
+
+            $statesEnum = static::resolveStatesEnum();
+            $statesEnum = WorkflowCache::remember($workflow, 'statesEnum', static fn() => $statesEnum);
+
+            $stateValues = WorkflowCache::remember($workflow, 'states',
+                static fn() => array_map(static fn(UnitEnum $case) => $case->value, $statesEnum::cases())
+            );
+            $stateValues = is_array($stateValues) ? $stateValues : [];
+
+            $states = [];
+
+            foreach ($stateValues as $value) {
+                $case = $statesEnum::tryFrom($value);
+
+                if ($case !== null) {
+                    $states[$case->value] = $case;
+                }
+            }
+
+            static::$cachedStatesEnum[$workflow] = $statesEnum;
+            static::$cachedStates[$workflow] = $states;
         }
+
+        return [static::$cachedStatesEnum[$workflow], static::$cachedStates[$workflow]];
     }
 
-    public function currentStateGroup(): ?array
+    private static function resolveStatesEnum(): string
     {
-        return static::stateGroupFor($this->currentState);
+        $statesEnum = static::class.'States';
+
+        if (!enum_exists($statesEnum)) {
+            throw new RuntimeException('States enum not found');
+        }
+
+        return $statesEnum;
     }
 }
