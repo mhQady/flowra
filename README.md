@@ -136,6 +136,10 @@ Flowra ships several artisan commands once registered through `FlowraServiceProv
 php artisan flowra:export-workflow "Flowra\Flows\MainFlow\MainWorkflow"
 # ⇢ writes to storage/app/flowra/workflows/Flowra-Flows-MainFlow-MainWorkflow.mmd
 
+# or pass just the class name (resolved from config('flowra.workflows_namespace'))
+php artisan flowra:export-workflow "MainWorkflow"
+# ⇢ resolves to App\Workflows\MainWorkflow\MainWorkflow by default
+
 # save a PlantUML diagram to a file
 php artisan flowra:export-workflow "Flowra\Flows\MainFlow\MainWorkflow" \
     --format=plantuml --output=storage/app/diagrams/main-workflow.puml

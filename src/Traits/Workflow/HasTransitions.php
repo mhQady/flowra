@@ -7,7 +7,7 @@ use Flowra\Support\WorkflowCache;
 
 trait HasTransitions
 {
-    use CanApplyTransitions, CanApplyBulkTransitions;
+    use CanApplyTransitions;
 
     private array $transitions = [];
     protected static array $cachedTransitions = [];

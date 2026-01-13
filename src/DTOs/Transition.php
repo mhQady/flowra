@@ -26,7 +26,7 @@ class Transition
         public readonly string $key,
         public readonly UnitEnum $from,
         public readonly UnitEnum $to,
-        public ?int $appliedBy = null,  // optional user id
+        public int|string|null $appliedBy = null,  // optional user id
         public int $type = TransitionTypesEnum::TRANSITION->value
     ) {
 
@@ -72,7 +72,7 @@ class Transition
         return $this;
     }
 
-    public function appliedBy(?int $appliedBy = null): static
+    public function appliedBy(int|string|null $appliedBy = null): static
     {
         //TODO: implement appliedBy Way
         $this->appliedBy = $appliedBy;

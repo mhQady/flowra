@@ -2,15 +2,15 @@
 
 namespace Flowra\DTOs;
 
-class BulkTransitionResult
+readonly class BulkTransitionResult
 {
     /**
      * @param  array<int, array{target: mixed, status: \Flowra\Models\Status|null}>  $successes
      * @param  array<int, array{target: mixed, exception: \Throwable}>  $failures
      */
     public function __construct(
-        public readonly array $successes = [],
-        public readonly array $failures = [],
+        public array $successes = [],
+        public array $failures = [],
     ) {
     }
 

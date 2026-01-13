@@ -1,4 +1,3 @@
 /vendor
 /.idea
-/workbench
-src/database/testing.sqlite
+/notes

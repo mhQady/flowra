@@ -3,11 +3,14 @@
 namespace Flowra\Concretes;
 
 use Flowra\Contracts\HasWorkflowContract;
+use Flowra\DTOs\BulkTransitionResult;
 use Flowra\DTOs\Transition;
 use Flowra\Models\{Registry, Status};
+use Flowra\Services\BulkTransitionService;
 use Flowra\Traits\Support\Bootable;
 use Flowra\Traits\Workflow\{HasStates, HasTransitions};
 use Illuminate\Database\Eloquent\Collection;
+use Throwable;
 
 
 class BaseWorkflow
@@ -51,5 +54,20 @@ class BaseWorkflow
         }
 
         return null;
+    }
+
+    /**
+     * @throws Throwable
+     */
+    public static function applyMany(
+        iterable $targets,
+        string|Transition $transition,
+        int|string|null $appliedBy = null,
+        array $comments = [],
+        bool $continueOnError = false,
+        ?int $chunk = null
+    ): BulkTransitionResult {
+        return BulkTransitionService::for(static::class)
+            ->apply($targets, $transition, $appliedBy, $comments, $continueOnError, $chunk);
     }
 }

@@ -5,7 +5,7 @@ namespace Flowra\Traits;
 use BackedEnum;
 use Flowra\DTOs\BulkTransitionResult;
 use Flowra\DTOs\Transition;
-use Flowra\Exceptions\ApplyTransitionException;
+use Flowra\Services\BulkTransitionService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -123,55 +123,64 @@ trait HasWorkflowScopes
 
     private static function registerTransitionMacros(): void
     {
-        if (!Builder::hasGlobalMacro('applyTransition')) {
-            Builder::macro('applyTransition', function (string|Transition $transition, array $options = []) {
-                /** @var Builder $this */
-                $model = $this->getModel();
-                $workflows = method_exists($model, 'appliedWorkflows') ? $model::appliedWorkflows() : [];
-
-                if (empty($workflows)) {
-                    throw new ApplyTransitionException('No workflows registered for model '.get_class($model));
-                }
-
-                if (count($workflows) > 1) {
-                    throw new ApplyTransitionException('Multiple workflows registered; use apply{Alias}Transition macro.');
-                }
-
-                $workflowClass = $workflows[0];
-                $collection = $this->get();
-
-                if ($collection->isEmpty()) {
-                    return new BulkTransitionResult();
-                }
-
-                return new $workflowClass($collection->first())->applyMany($collection, $transition, $options);
-            });
-        }
-
-        if (!Collection::hasMacro('applyTransition')) {
-            Collection::macro('applyTransition', function (string|Transition $transition, array $options = []) {
-                /** @var Collection $this */
-                if ($this->isEmpty()) {
-                    return new BulkTransitionResult();
-                }
-
-                $first = $this->first();
-                $workflows = method_exists($first, 'appliedWorkflows') ? $first::appliedWorkflows() : [];
-
-                if (empty($workflows)) {
-                    throw new ApplyTransitionException('No workflows registered for model '.get_class($first));
-                }
-
-                if (count($workflows) > 1) {
-                    throw new ApplyTransitionException('Multiple workflows registered; use apply{Alias}Transition macro.');
-                }
-
-                $workflowClass = $workflows[0];
-                $workflow = new $workflowClass($first);
-
-                return $workflow->applyMany($this->all(), $transition, $options);
-            });
-        }
+//        if (!Builder::hasGlobalMacro('applyTransition')) {
+//            Builder::macro('applyTransition', function (
+//                string|Transition $transition,
+//                int|string|null $appliedBy = null,
+//                array $comments = [],
+//                bool $continueOnError = false,
+//                ?int $chunk = null
+//            ) {
+//                /** @var Builder $this */
+//                $model = $this->getModel();
+//                $workflows = method_exists($model, 'appliedWorkflows') ? $model::appliedWorkflows() : [];
+//                if (empty($workflows)) {
+//                    throw new RuntimeException('No workflows registered for model '.get_class($model));
+//                }
+//
+//                if (count($workflows) > 1) {
+//                    throw new ApplyTransitionException('Multiple workflows registered; use apply{Alias}Transition macro.');
+//                }
+//
+//                dd($workflows);
+//
+//                $workflowClass = $workflows[0];
+//                $collection = $this->get();
+//
+//                if ($collection->isEmpty()) {
+//                    return new BulkTransitionResult();
+//                }
+//
+//                return BulkTransitionService::for($workflowClass)->apply($collection, $transition, $options);
+//            });
+//        }
+//
+//        if (!Collection::hasMacro('applyTransition')) {
+//            Collection::macro('applyTransition', function (
+//                string|Transition $transition,
+//                ?BulkTransitionOptions $options = null
+//            ) {
+//                /** @var Collection $this */
+//                if ($this->isEmpty()) {
+//                    return new BulkTransitionResult();
+//                }
+//
+//                $first = $this->first();
+//                $workflows = method_exists($first, 'appliedWorkflows') ? $first::appliedWorkflows() : [];
+//
+//                if (empty($workflows)) {
+//                    throw new ApplyTransitionException('No workflows registered for model '.get_class($first));
+//                }
+//
+//                if (count($workflows) > 1) {
+//                    throw new ApplyTransitionException('Multiple workflows registered; use apply{Alias}Transition macro.');
+//                }
+//
+//                $workflowClass = $workflows[0];
+//
+//                return BulkTransitionService::for($workflowClass)->apply($this->all(), $transition, $options);
+//            });
+//        }
 
         foreach (static::appliedWorkflows() as $class) {
             $alias = Str::pascal(class_basename($class));
@@ -179,7 +188,13 @@ trait HasWorkflowScopes
 
             if (!Builder::hasGlobalMacro($macroName)) {
                 Builder::macro($macroName,
-                    function (string|Transition $transition, array $options = []) use ($class) {
+                    function (
+                        string|Transition $transition,
+                        int|string|null $appliedBy = null,
+                        array $comments = [],
+                        bool $continueOnError = false,
+                        ?int $chunk = null
+                    ) use ($class) {
                         /** @var Builder $this */
                         $collection = $this->get();
 
@@ -187,23 +202,25 @@ trait HasWorkflowScopes
                             return new BulkTransitionResult();
                         }
 
-                        $workflow = new $class($collection->first());
-
-                        return $workflow->applyMany($collection, $transition, $options);
+                        return BulkTransitionService::for($class)->apply($collection, $transition, $options);
                     });
             }
 
             if (!Collection::hasMacro($macroName)) {
                 Collection::macro($macroName,
-                    function (string|Transition $transition, array $options = []) use ($class) {
+                    function (
+                        string|Transition $transition,
+                        int|string|null $appliedBy = null,
+                        array $comments = [],
+                        bool $continueOnError = false,
+                        ?int $chunk = null
+                    ) use ($class) {
                         /** @var Collection $this */
                         if ($this->isEmpty()) {
                             return new BulkTransitionResult();
                         }
 
-                        $workflow = new $class($this->first());
-
-                        return $workflow->applyMany($this->all(), $transition, $options);
+                        return BulkTransitionService::for($class)->apply($this->all(), $transition, $options);
                     });
             }
         }
