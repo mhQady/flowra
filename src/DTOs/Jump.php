@@ -13,7 +13,7 @@ class Jump extends Transition
         UnitEnum $from,
         UnitEnum $to,
         BaseWorkflow $workflow,
-        ?int $appliedBy = null,
+        int|string|null $appliedBy = null,
     ) {
         parent::__construct($key, $from, $to, $appliedBy, TransitionTypesEnum::RESET->value);
 

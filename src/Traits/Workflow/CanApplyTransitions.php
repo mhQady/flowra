@@ -40,7 +40,7 @@ trait CanApplyTransitions
     public function jumpTo(
         UnitEnum|string|int $state,
         string $jumpName = 'reset',
-        ?int $appliedBy = null,
+        int|string|null $appliedBy = null,
     ): static {
         [$toState, $fromState] = $this->validateJumpApplicable($state);
 

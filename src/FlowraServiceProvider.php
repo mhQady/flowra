@@ -20,7 +20,7 @@ class FlowraServiceProvider extends ServiceProvider
                 \Flowra\Console\MakeWorkflow::class,
                 \Flowra\Console\MakeGuard::class,
                 \Flowra\Console\MakeAction::class,
-//                \Flowra\Console\ExportWorkflowDiagram::class,
+                \Flowra\Console\ExportWorkflowDiagram::class,
 //                \Flowra\Console\ImportWorkflowDiagram::class,
 //                \Flowra\Console\ClearWorkflowCache::class,
 //                \Flowra\Console\WarmWorkflowCache::class,

@@ -9,7 +9,7 @@ use UnitEnum;
 
 trait HasStates
 {
-//    use HasStateGroups;
+    use HasStateGroups;
 
     /**
      * @var string<UnitEnum>
