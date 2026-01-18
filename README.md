@@ -8,9 +8,20 @@ The package provides artisan generators, migration stubs, rich Eloquent traits, 
 
 - attach workflows to any Eloquent model,
 - track the current status and historical registry of each workflow run,
-- nest inner workflows through state groups,
+- nest state groups,
 - gate transitions with guards and execute actions after state changes, and
 - query models by workflow state (including grouped states) using fluent scopes.
+
+---
+
+## 📦 Installation
+
+```bash
+composer require mhqady/flowra
+```
+
+Register the service provider if you are not using package auto-discovery, then publish the assets as shown below. Add
+`HasWorkflow` to any model that needs a workflow and use the stubs to generate your first workflow pair.
 
 ---
 
@@ -22,7 +33,7 @@ Every workflow extends `Flowra\Concretes\BaseWorkflow` and defines two classes:
 
 - `YourWorkflow` – contains transition definitions.
 - `YourWorkflowStates` – an enum describing the workflow states. Optional `groups()` declarations describe grouped
-  states that wrap nested flows (e.g., a `draft` group that owns all of the child fill-data states).
+  states (e.g., a `draft` group that owns all of the draft states).
 
 ```php
 enum MainWorkflowStates: string
@@ -38,17 +49,16 @@ enum MainWorkflowStates: string
     {
         return [
             \Flowra\DTOs\StateGroup::make(self::DRAFT)->children(
-                FillAppDataWorkflowStates::INIT,
-                FillAppDataWorkflowStates::OWNER_INFO_ENTERED,
-                FillAppDataWorkflowStates::SENT,
+                self::INIT,
+                // ...
             ),
         ];
     }
 }
 ```
 
-State groups are surfaced everywhere—switching, querying, and eager loading—so your parent workflow knows when a child
-flow is running and scopes can refer to either the parent `draft` group or any of its nested child states.
+State groups are surfaced everywhere—switching, querying, and eager loading—so your workflow knows when it is in a
+grouped state and scopes can refer to either the parent group or any of its child states.
 
 ### Transitions
 
@@ -110,17 +120,6 @@ class Context extends Model
 - query scopes/macros (`whereMainWorkflowCurrentStatus`, `withWhereMainWorkflowCurrentStatus`, etc.) that understand
   grouped states.
 
-### Subflows via State Groups
-
-Instead of bespoke subflow contracts, Flowra uses state groups to represent nested workflows. When a parent state is
-grouped, Flowra knows:
-
-- the parent workflow should suspend until the child reaches one of the mapped exit states,
-- the registry should record the nested path/parent IDs, and
-- query scopes should normalize child states back to the parent group automatically.
-
----
-
 ## 🧰 Tooling
 
 Flowra ships several artisan commands once registered through `FlowraServiceProvider`:
@@ -128,8 +127,10 @@ Flowra ships several artisan commands once registered through `FlowraServiceProv
 - `flowra:make-workflow` – scaffolds a workflow class and its states enum (with the `groups()` template).
 - `flowra:make-guard`, `flowra:make-action` – generate guard/action classes.
 - `flowra:list-workflow` – inspect registered workflows at runtime.
-- `flowra:export-workflow` – export any workflow to a Mermaid or PlantUML diagram (print to the console or write to disk).
-- `flowra:import-workflow` – convert a Mermaid/PlantUML diagram back into enum cases, transition snippets, and ready-to-use workflow/state files.
+- `flowra:export-workflow` – export any workflow to a Mermaid or PlantUML diagram (print to the console or write to
+  disk).
+- `flowra:import-workflow` – convert a Mermaid/PlantUML diagram back into enum cases, transition snippets, and
+  ready-to-use workflow/state files.
 
 ```bash
 # print a Mermaid diagram
@@ -170,33 +171,151 @@ php artisan migrate
 
 ---
 
-## 📦 Installation
+## 🚀 Usage
 
-```bash
-composer require mhqady/flowra
+Once you have configured your model with the `HasWorkflow` trait and defined your workflows, you can start using them.
+
+### Applying Transitions
+
+There are several ways to apply transitions to a model.
+
+#### Using Magic Properties
+
+The easiest way is to use the magic properties on the workflow instance, which correspond to the transition keys defined
+in your `transitionsSchema`.
+
+```php
+$context = Context::find(1);
+
+// Apply transition using its key as a property
+$context->mainWorkflow->filling_app_data->apply();
+
+// Or using camelCase
+$context->mainWorkflow->fillingAppData->apply();
 ```
 
-Register the service provider if you are not using package auto-discovery, then publish the assets as shown above. Add
-`HasWorkflow` to any model that needs a workflow and use the stubs to generate your first workflow pair.
+#### Using the Transition DTO
+
+You can also apply a transition by passing the `Transition` DTO directly.
+
+```php
+use Flowra\DTOs\Transition;
+
+$context->mainWorkflow->apply(
+    Transition::make('filling_app_data', MainWorkflowStates::INIT, MainWorkflowStates::DRAFT)
+);
+```
+
+#### Adding Metadata
+
+You can attach comments or the ID of the user who applied the transition.
+
+```php
+$context->mainWorkflow->filling_app_data
+    ->comment('This is a reason for transition', 'Another comment')
+    ->appliedBy(auth()->id())
+    ->apply();
+```
+
+### Bulk Transitions
+
+Flowra provides a way to apply transitions to multiple models efficiently.
+
+```php
+$models = Context::whereIn('id', [1, 2, 3])->get();
+
+// Apply transition to a collection
+MainWorkflow::applyMany($models, 'filling_app_data');
+
+// You can also use the BulkTransitionService for more control
+use Flowra\Services\BulkTransitionService;
+
+BulkTransitionService::for(MainWorkflow::class)
+    ->targets($models)
+    ->transition('filling_app_data')
+    ->appliedBy(auth()->id())
+    ->comments(['Bulk update'])
+    ->run();
+```
+
+### State Jumps
+
+If you need to move a model to a specific state without following a defined transition (e.g., for administrative
+resets), you can use the `jumpTo` method.
+
+```php
+$context->mainWorkflow->jumpTo(MainWorkflowStates::INIT, 'admin_reset');
+```
+
+### Accessing Status & History
+
+You can easily access the current status and the full history of transitions.
+
+```php
+// Get current status model (Flowra\Models\Status)
+$status = $context->mainWorkflow->status();
+echo $status->to; // 'draft'
+
+// Get current state (Enum case)
+$state = $context->mainWorkflow->currentState;
+
+// Get history (Collection of Flowra\Models\Registry)
+$history = $context->mainWorkflow->registry();
+```
 
 ---
 
 ## 🧪 Querying & Scopes
 
-The `HasWorkflowScopes` trait installs helper scopes/macros:
+The `HasWorkflowScopes` trait (included in `HasWorkflow`) installs helper scopes and macros that allow you to query your
+models based on their workflow state.
+
+### Basic Scopes
 
 ```php
+// Find all models in a specific state
 Context::query()
-    ->whereMainWorkflowCurrentStatus(MainWorkflowStates::READY_FOR_AUDITING)
-    ->orWhereMainWorkflowCurrentStatus(FillAppDataWorkflowStates::OWNER_INFO_ENTERED) // expands to the parent group
-    ->withWhereMainWorkflowCurrentStatus(MainWorkflowStates::DRAFT) // eager loads grouped statuses
+    ->whereMainWorkflowCurrentStatus(MainWorkflowStates::PUBLISHED)
+    ->get();
+
+// Using orWhere
+Context::query()
+    ->whereMainWorkflowCurrentStatus(MainWorkflowStates::DRAFT)
+    ->orWhereMainWorkflowCurrentStatus(MainWorkflowStates::INIT)
     ->get();
 ```
 
-State groups are automatically expanded or collapsed depending on whether you filter by a parent state or a child state.
+### State Group Expansion
+
+Flowra's scopes automatically handle state groups. If you query by a parent state that has children, Flowra will include
+models in any of those child states.
+
+```php
+// If DRAFT group includes INIT, FILLING_DATA, and SENT
+// This will find models in any of those three states
+Context::query()
+    ->whereMainWorkflowCurrentStatus(MainWorkflowStates::DRAFT)
+    ->get();
+```
+
+### Eager Loading Statuses
+
+To avoid N+1 issues when you need to access workflow information for multiple models, use the `with` scopes.
+
+```php
+// Eager load the main workflow status
+$models = Context::query()
+    ->withMainWorkflowStatus()
+    ->get();
+
+// Eager load and filter at the same time
+$models = Context::query()
+    ->withWhereMainWorkflowCurrentStatus(MainWorkflowStates::READY_FOR_AUDITING)
+    ->get();
+```
 
 ---
 
-Flowra brings workflow modeling, nested state management, and auditability straight into your Laravel models. Whether
-you’re orchestrating multi-step approvals or spinning up nested subflows, Flowra gives you strongly typed, testable
+Flowra brings workflow modeling, state management, and auditability straight into your Laravel models. Whether
+you’re orchestrating multi-step approvals or complex business processes, Flowra gives you strongly typed, testable
 workflows you can iterate on quickly. Happy flowing!
