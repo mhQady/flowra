@@ -47,8 +47,12 @@ class FlowraServiceProvider extends ServiceProvider
             __DIR__.'/../lang' => base_path('lang/vendor/flowra'),
         ], 'flowra-translations');
 
-        AboutCommand::add('Flowra', static fn() => [
-            'Version' => InstalledVersions::getPrettyVersion('mhqady/flowra')
-        ]);
+        if (class_exists(AboutCommand::class) && method_exists(AboutCommand::class, 'add')) {
+            AboutCommand::add('Flowra', static fn() => [
+                'Version' => InstalledVersions::isInstalled('mhqady/flowra')
+                    ? InstalledVersions::getPrettyVersion('mhqady/flowra')
+                    : 'unknown',
+            ]);
+        }
     }
 }

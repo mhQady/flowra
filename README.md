@@ -19,6 +19,8 @@ The package provides artisan generators, migration stubs, rich Eloquent traits, 
 
 ## 📦 Installation
 
+Flowra supports Laravel 12 and 13 on PHP 8.3+.
+
 ```bash
 composer require mhqady/flowra
 ```
