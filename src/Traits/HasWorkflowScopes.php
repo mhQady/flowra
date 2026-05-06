@@ -94,7 +94,7 @@ trait HasWorkflowScopes
         string|UnitEnum|array $states
     ): Builder {
         [$relation, $in] = $this->normalizeWorkflowAndStates($workflow, $states);
-        return $query->withWhereHas($relation, fn($q) => $q->whereIn('to', $in));;
+        return $query->withWhereHas($relation, fn($q) => $q->whereIn('to', $in));
     }
 
     private static function registerScopesMacros(): void
@@ -235,9 +235,14 @@ trait HasWorkflowScopes
     {
         [$relation, $workflowClass] = $this->workflowRelationInfo($workflow);
 
-        $list = is_array($states) ? $states : [$states];
-
         $in = [];
+
+        if (is_array($states)) {
+            $list = $states;
+        } else {
+            $list = [$states];
+            $in[] = $this->stringifyState($states);
+        }
 
         foreach ($list as $state) {
             $in = array_merge($in, $this->expandStateForWorkflow($workflowClass, $state));
