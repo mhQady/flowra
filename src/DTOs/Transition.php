@@ -7,6 +7,7 @@ use Flowra\Concretes\BaseWorkflow;
 use Flowra\Contracts\ActionContract;
 use Flowra\Contracts\GuardContract;
 use Flowra\Enums\TransitionTypesEnum;
+use Illuminate\Database\Eloquent\Model;
 use Throwable;
 use UnitEnum;
 
@@ -103,6 +104,11 @@ class Transition
     public function actions(): array
     {
         return $this->actions;
+    }
+
+    public function appliedOnModel(): Model
+    {
+        return $this->workflow->model;
     }
 
 //    public function jsonSerialize(): array
