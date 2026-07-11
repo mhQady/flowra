@@ -91,7 +91,7 @@ final class ImportWorkflowDiagram extends Command
 
     private function __getParsedData($diagram, $format, $statesEnumShort): array
     {
-        $parsed = new WorkflowDiagramImporter()->parse($diagram, $format);
+        $parsed = (new WorkflowDiagramImporter())->parse($diagram, $format);
 
         return [
             'states_snippet' => $this->buildStatesSnippet($parsed['states']),
