@@ -42,10 +42,7 @@
     "laravel": {
       "providers": [
         "Flowra\\FlowraServiceProvider"
-      ],
-      "aliases": {
-        "Flowra": "Flowra\\Facades\\Flowra"
-      }
+      ]
     }
   },
   "support": {
