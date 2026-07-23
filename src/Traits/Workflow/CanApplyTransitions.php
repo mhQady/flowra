@@ -6,8 +6,8 @@ use Flowra\DTOs\Jump;
 use Flowra\DTOs\Transition;
 use Flowra\Exceptions\ApplyJumpException;
 use Flowra\Exceptions\ApplyTransitionException;
-use Flowra\Models\Registry;
 use Flowra\Models\Status;
+use Flowra\Support\WorkflowModels;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 use UnitEnum;
@@ -139,7 +139,7 @@ trait CanApplyTransitions
      */
     private function saveStatus(Transition $t): Status
     {
-        return Status::query()->updateOrCreate(
+        return WorkflowModels::status()::query()->updateOrCreate(
             [
                 'owner_type' => $this->model->getMorphClass(),
                 'owner_id' => $this->model->getKey(),
@@ -163,7 +163,7 @@ trait CanApplyTransitions
      */
     private function appendToRegistry(Transition $t): void
     {
-        Registry::query()->create([
+        WorkflowModels::registry()::query()->create([
             'owner_type' => $this->model->getMorphClass(),
             'owner_id' => $this->model->getKey(),
             'workflow' => $this::class,

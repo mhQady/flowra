@@ -424,6 +424,41 @@ Generator stubs can be customized by publishing them (`--tag=flowra-stubs`) — 
 | `cache_driver` | `database` | Cache store used for workflow definitions (env: `FLOWRA_CACHE_DRIVER`) |
 | `tables.statuses` | `statuses` | Table holding each model's current state per workflow |
 | `tables.registry` | `statuses_registry` | Append-only transition history table |
+| `models.status` | `Flowra\Models\Status::class` | Eloquent class used for status rows |
+| `models.registry` | `Flowra\Models\Registry::class` | Eloquent class used for registry rows |
+
+### Using your own Status / Registry models
+
+Point `models.status` / `models.registry` at your own classes to add casts, relations, scopes, or
+other behavior to the rows Flowra writes. Your class **must extend** the corresponding Flowra
+model:
+
+```php
+namespace App\Models;
+
+use Flowra\Models\Status as BaseStatus;
+
+class Status extends BaseStatus
+{
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'applied_by');
+    }
+}
+```
+
+```php
+// config/flowra.php
+'models' => [
+    'status' => \App\Models\Status::class,
+    'registry' => \App\Models\Registry::class,
+],
+```
+
+Every relation (`{alias}Status`, `{alias}Registry`, `statuses()`, `registry()`) and every internal
+read/write (`$workflow->status()`, `$workflow->registry()`, transition persistence) resolves the
+class through this config at call time, so the swap applies package-wide with no other code
+changes.
 
 ## Database Schema
 

@@ -45,6 +45,19 @@ return [
         'registry' => 'statuses_registry',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Models
+    |--------------------------------------------------------------------------
+    | Eloquent classes Flowra uses for status/registry rows. Point these at
+    | your own classes to add casts, relations, or behavior — they must
+    | extend the respective Flowra\Models class.
+    */
+    'models' => [
+        'status' => Flowra\Models\Status::class,
+        'registry' => Flowra\Models\Registry::class,
+    ],
+
 //    // Define the workflow stubs directory
 //    'stubs_dir' => base_path('stubs/workflow'),
 //

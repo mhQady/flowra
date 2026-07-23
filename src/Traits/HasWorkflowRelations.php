@@ -2,8 +2,7 @@
 
 namespace Flowra\Traits;
 
-use Flowra\Models\Registry;
-use Flowra\Models\Status;
+use Flowra\Support\WorkflowModels;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Str;
@@ -27,11 +26,11 @@ trait HasWorkflowRelations
             $alias = Str::camel(class_basename($class));
 
             static::resolveRelationUsing($alias.'Status', function (Model $model) use ($class) {
-                return $model->morphOne(Status::class, 'owner')->where('workflow', $class);
+                return $model->morphOne(WorkflowModels::status(), 'owner')->where('workflow', $class);
             });
 
             static::resolveRelationUsing($alias.'Registry', function (Model $model) use ($class) {
-                return $model->morphMany(Registry::class, 'owner')->where('workflow', $class);
+                return $model->morphMany(WorkflowModels::registry(), 'owner')->where('workflow', $class);
             });
         }
     }
@@ -43,7 +42,7 @@ trait HasWorkflowRelations
      */
     public function statuses(): MorphMany
     {
-        return $this->morphMany(Status::class, 'owner');
+        return $this->morphMany(WorkflowModels::status(), 'owner');
     }
 
     /**
@@ -53,6 +52,6 @@ trait HasWorkflowRelations
      */
     public function registry(): MorphMany
     {
-        return $this->morphMany(Registry::class, 'owner');
+        return $this->morphMany(WorkflowModels::registry(), 'owner');
     }
 }
