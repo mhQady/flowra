@@ -5,8 +5,9 @@ namespace Flowra\Concretes;
 use Flowra\Contracts\HasWorkflowContract;
 use Flowra\DTOs\BulkTransitionResult;
 use Flowra\DTOs\Transition;
-use Flowra\Models\{Registry, Status};
+use Flowra\Models\Status;
 use Flowra\Services\BulkTransitionService;
+use Flowra\Support\WorkflowModels;
 use Flowra\Traits\Support\Bootable;
 use Flowra\Traits\Workflow\{HasStates, HasTransitions};
 use Illuminate\Database\Eloquent\Collection;
@@ -31,7 +32,7 @@ class BaseWorkflow
 
     public function status(): ?Status
     {
-        return Status::query()
+        return WorkflowModels::status()::query()
             ->where('owner_type', $this->model->getMorphClass())
             ->where('owner_id', $this->model->getKey())
             ->where('workflow', $this::class)
@@ -40,7 +41,7 @@ class BaseWorkflow
 
     public function registry(): Collection
     {
-        return Registry::query()
+        return WorkflowModels::registry()::query()
             ->where('owner_type', $this->model->getMorphClass())
             ->where('owner_id', $this->model->getKey())
             ->where('workflow', $this::class)
