@@ -67,7 +67,7 @@ final class ImportWorkflowDiagram extends Command
                 $statesEnumShort,
                 $parsed['states_snippet'],
                 $this->option('force'),
-                $parsed['groups_snippet']
+                $parsed['phases_snippet']
             );
             $this->__writeWorkflowFile(
                 $files,
@@ -95,7 +95,7 @@ final class ImportWorkflowDiagram extends Command
 
         return [
             'states_snippet' => $this->buildStatesSnippet($parsed['states']),
-            'groups_snippet' => $this->buildGroupsSnippet($parsed['groups'], $parsed['states']),
+            'phases_snippet' => $this->buildPhasesSnippet($parsed['phases'], $parsed['states']),
             'transitions_snippet' => $this->buildTransitionsSnippet($parsed['states'], $parsed['transitions'],
                 $statesEnumShort),
         ];
@@ -296,29 +296,29 @@ final class ImportWorkflowDiagram extends Command
     }
 
     /**
-     * Build the groups() method snippet describing nested state groups.
+     * Build the phases() method snippet describing nested states.
      *
-     * @param  array<int, array{parent: string, children: array<int, string>}>  $groups
+     * @param  array<int, array{parent: string, children: array<int, string>}>  $phases
      * @param  array<string, array{id: string, case: string, value: string, label: string}>  $states
      * @return string|null
      */
-    private function buildGroupsSnippet(array $groups, array $states): ?string
+    private function buildPhasesSnippet(array $phases, array $states): ?string
     {
-        if ($groups === []) {
+        if ($phases === []) {
             return null;
         }
 
         $blocks = [];
 
-        foreach ($groups as $group) {
-            if ($group['children'] === []) {
+        foreach ($phases as $phase) {
+            if ($phase['children'] === []) {
                 continue;
             }
 
-            $parentCase = $states[$group['parent']]['case'] ?? strtoupper($group['parent']);
+            $parentCase = $states[$phase['parent']]['case'] ?? strtoupper($phase['parent']);
             $childrenCases = array_map(
                 fn(string $child) => $states[$child]['case'] ?? strtoupper($child),
-                $group['children']
+                $phase['children']
             );
 
             $childrenBody = implode(",\n                ", array_map(
@@ -327,7 +327,7 @@ final class ImportWorkflowDiagram extends Command
             ));
 
             $blocks[] = <<<PHP
-            StateGroup::make(self::{$parentCase})->children(
+            Phase::make(self::{$parentCase})->children(
                 {$childrenBody},
             ),
     PHP;
@@ -341,11 +341,11 @@ final class ImportWorkflowDiagram extends Command
 
         return <<<PHP
     /**
-     * Describe states that act as groups/nodes for nested states.
+     * Describe the phases of this workflow: states that contain nested states.
      *
-     * @return array<StateGroup|array>
+     * @return array<Phase|array>
      */
-    public static function groups(): array
+    public static function phases(): array
     {
         return [
 {$body}
@@ -364,7 +364,7 @@ PHP;
      * @param  string  $class
      * @param  string  $cases
      * @param  bool  $force
-     * @param  string|null  $groupsSnippet
+     * @param  string|null  $phasesSnippet
      */
     private function __writeStatesFile(
         Filesystem $files,
@@ -373,22 +373,22 @@ PHP;
         string $class,
         string $cases,
         bool $force,
-        ?string $groupsSnippet = null
+        ?string $phasesSnippet = null
     ): void {
         $header = "<?php\n\n";
         if ($namespace !== '') {
             $header .= "namespace {$namespace};\n\n";
         }
         $header .= "use Flowra\\Enums\\BaseEnum;\n";
-        if ($groupsSnippet !== null) {
-            $header .= "use Flowra\\DTOs\\StateGroup;\n";
+        if ($phasesSnippet !== null) {
+            $header .= "use Flowra\\DTOs\\Phase;\n";
         }
         $header .= "\n";
 
         $body = rtrim($cases);
 
-        if ($groupsSnippet !== null) {
-            $body .= "\n\n".rtrim($groupsSnippet);
+        if ($phasesSnippet !== null) {
+            $body .= "\n\n".rtrim($phasesSnippet);
         }
 
         $body .= "\n";

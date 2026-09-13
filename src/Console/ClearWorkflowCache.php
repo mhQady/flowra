@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 class ClearWorkflowCache extends Command
 {
     protected $signature = 'flowra:cache:clear {workflow?*}';
-    protected $description = 'Clear cached Flowra workflow data (transitions, states, state groups, states enum)';
+    protected $description = 'Clear cached Flowra workflow data (transitions, states, phases, states enum)';
 
     public function handle(): int
     {

@@ -9,7 +9,7 @@ use UnitEnum;
 
 trait HasStates
 {
-    use HasStateGroups;
+    use HasPhases;
 
     /**
      * @var string<UnitEnum>
@@ -60,9 +60,9 @@ trait HasStates
         $this->currentState = $this->statesEnum::tryFrom($status?->to);
     }
 
-//    public function currentStateGroup(): ?array
+//    public function currentStatePhase(): ?array
 //    {
-//        return static::stateGroupFor($this->currentState);
+//        return static::phase($this->currentState);
 //    }
 
     /**

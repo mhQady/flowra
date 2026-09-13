@@ -16,7 +16,7 @@ class WorkflowDiagramImporter
     private array $usedStateCases = [];
 
     /**
-     * Parse the supplied diagram into states, transitions, and group metadata.
+     * Parse the supplied diagram into states, transitions, and phase metadata.
      *
      * @param  string  $diagram
      * @param  string  $format
@@ -24,7 +24,7 @@ class WorkflowDiagramImporter
      *     format: string,
      *     states: array<string, array{id: string, case: string, value: string, label: string}>,
      *     transitions: array<int, array{key: string, from: string, to: string, label: string}>,
-     *     groups: array<int, array{parent: string, children: array<int, string>}>
+     *     phases: array<int, array{parent: string, children: array<int, string>}>
      * }
      */
     public function parse(string $diagram, string $format = 'auto'): array
@@ -40,7 +40,7 @@ class WorkflowDiagramImporter
         $format = $this->detectFormat($diagram, $format);
 
         $states = $this->parseStates($diagram);
-        $groups = $this->parseGroups($diagram);
+        $phases = $this->parsePhases($diagram);
         $transitions = $this->parseTransitions($diagram, $states);
 
         if ($states === []) {
@@ -55,7 +55,7 @@ class WorkflowDiagramImporter
             'format' => $format,
             'states' => $states,
             'transitions' => $transitions,
-            'groups' => $groups,
+            'phases' => $phases,
         ];
     }
 
@@ -269,15 +269,15 @@ class WorkflowDiagramImporter
     }
 
     /**
-     * Detect nested state blocks and return parent/child group relationships.
+     * Detect nested state blocks and return parent/child phase relationships.
      *
      * @param  string  $diagram
      * @return array<int, array{parent: string, children: array<int, string>}>
      */
-    private function parseGroups(string $diagram): array
+    private function parsePhases(string $diagram): array
     {
         $lines = preg_split('/\R/', $diagram) ?: [];
-        $groups = [];
+        $phases = [];
         $stack = [];
 
         foreach ($lines as $line) {
@@ -290,7 +290,7 @@ class WorkflowDiagramImporter
             if (preg_match('/state\s+"[^"]+"\s+as\s+([A-Za-z0-9_]+)\s*\{/', $trimmed, $match)) {
                 $parent = $match[1];
                 $stack[] = $parent;
-                $groups[$parent] ??= [];
+                $phases[$parent] ??= [];
                 continue;
             }
 
@@ -306,14 +306,14 @@ class WorkflowDiagramImporter
                 $child = $match[1];
                 $parent = end($stack);
                 if ($parent !== false) {
-                    $groups[$parent][] = $child;
+                    $phases[$parent][] = $child;
                 }
             }
         }
 
         $result = [];
 
-        foreach ($groups as $parent => $children) {
+        foreach ($phases as $parent => $children) {
             $children = array_values(array_unique(array_filter($children)));
 
             if ($children === []) {

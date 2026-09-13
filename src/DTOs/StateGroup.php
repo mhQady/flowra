@@ -2,46 +2,23 @@
 
 namespace Flowra\DTOs;
 
-use UnitEnum;
+/*
+ * Phase under the name it had before "state group" became "phase".
+ *
+ * Autoloading Flowra\DTOs\StateGroup lands here and registers it as an alias of Phase, so
+ * StateGroup::make() returns a Phase and `instanceof` holds both ways. Delete this file at the
+ * next breaking release — see Traits\Workflow\HasStateGroupAliases for the rest of the layer.
+ */
+class_alias(Phase::class, StateGroup::class);
 
-final class StateGroup
-{
-    private UnitEnum|string $state;
-
+if (false) {
     /**
-     * @var array<int, UnitEnum|string>
+     * Never declared — describes the alias above to IDEs and classmap scanners.
+     *
+     * @deprecated Use Phase.
+     * @mixin Phase
      */
-    private array $children = [];
-
-    private function __construct(UnitEnum|string $state)
+    final class StateGroup
     {
-        $this->state = $state;
-    }
-
-    public static function make(UnitEnum|string $state): self
-    {
-        return new self($state);
-    }
-
-    public function child(UnitEnum|string $state): self
-    {
-        $this->children[] = $state;
-
-        return $this;
-    }
-
-    public function children(UnitEnum|string ...$states): self
-    {
-        array_push($this->children, ...$states);
-
-        return $this;
-    }
-
-    public function toArray(): array
-    {
-        return [
-            'state' => $this->state,
-            'children' => $this->children,
-        ];
     }
 }

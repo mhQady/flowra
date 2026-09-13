@@ -9,14 +9,14 @@ use Flowra\Models\Status;
 use Flowra\Services\BulkTransitionService;
 use Flowra\Support\WorkflowModels;
 use Flowra\Traits\Support\Bootable;
-use Flowra\Traits\Workflow\{HasStates, HasTransitions};
+use Flowra\Traits\Workflow\{HasRegistryViews, HasStates, HasTransitions};
 use Illuminate\Database\Eloquent\Collection;
 use Throwable;
 
 
 class BaseWorkflow
 {
-    use Bootable, HasStates, HasTransitions;
+    use Bootable, HasStates, HasTransitions, HasRegistryViews;
 
     public function __construct(public readonly HasWorkflowContract $model)
     {

@@ -33,7 +33,7 @@ class WarmWorkflowCache extends Command
                 // hydrate static caches
                 $workflow::states();
                 $workflow::transitions();
-//                $workflow::stateGroups();
+//                $workflow::phases();
                 $this->line("Warmed cache for {$workflow}");
             } catch (\Throwable $e) {
                 WorkflowCache::forget($workflow);
