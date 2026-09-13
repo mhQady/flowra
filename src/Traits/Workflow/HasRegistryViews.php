@@ -12,9 +12,9 @@ use Flowra\Support\RegistryViewResolver;
  * jumpTo() already recorded in the same table. registry() stays the complete,
  * unfiltered source of truth.
  *
- * Phases come from the state groups declared on the states enum — a row belongs to a phase
- * when the state it landed in (`to`) belongs to that phase's group. Whether a given phase
- * actually collapses is decided per view, not per group.
+ * Phases come from the phases() declared on the states enum — a row belongs to a phase when
+ * the state it landed in (`to`) belongs to that phase. Whether a given phase actually
+ * collapses is decided per view, not per phase.
  */
 trait HasRegistryViews
 {
@@ -31,8 +31,8 @@ trait HasRegistryViews
     /**
      * Map of state value => the phase that state sits in.
      *
-     * Derived from the already-cached state groups, so it costs no WorkflowCache key of its
-     * own — see HasStateGroups::statePhases().
+     * Derived from the already-cached phases, so it costs no WorkflowCache key of its own —
+     * see HasPhases::statePhases().
      *
      * @return array<string, array{key: string, label: ?string}>
      */

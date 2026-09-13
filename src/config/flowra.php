@@ -68,14 +68,14 @@ return [
     | of conditions:
     |
     |   'shape'      => 'detailed' (one entry per row) or 'collapsed' (consecutive
-    |                   rows landing in the same state group become one entry)
+    |                   rows landing in the same phase become one entry)
     |   'collapse'   => phases to collapse; omit to collapse all of them
     |   'expand'     => phases to leave expanded, when collapsing all the rest
     |   'conditions' => class-strings implementing RegistryScopeContract (applied in
     |                   SQL) and/or RegistryFilterContract (applied per row in PHP)
     |   'applied_by' => who the entries render as: an actor id, or one of the strategies
     |                   'first' / 'last' / 'sole' for picking one actor out of a collapsed
-    |                   run. Overrides whatever the phase's StateGroup declared.
+    |                   run. Overrides whatever the Phase itself declared.
     |
     | Views declared here apply to every workflow; a workflow's own static
     | registryViews() method may add to them and wins on name clashes. The built-in

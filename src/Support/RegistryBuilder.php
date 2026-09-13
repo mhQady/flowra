@@ -98,7 +98,7 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
     /**
      * Collapse only these phases; every other row stays a leaf.
      *
-     * Adds to the view's own selection. Name a phase by its group key or by any state
+     * Adds to the view's own selection. Name a phase by its key or by any state
      * inside it. Implies the collapsed shape.
      */
     public function collapse(UnitEnum|string ...$phases): self
@@ -159,7 +159,7 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
      * Mask this phase for this read, on top of whatever the view already masks.
      *
      * Same semantics as RegistryView::maskPhase(): the stand-in replaces the real actor and
-     * the recorded one is dropped. Name the phase by its group key or by any state in it.
+     * the recorded one is dropped. Name the phase by its key or by any state in it.
      */
     public function maskPhase(UnitEnum|string $phase, int|string|Closure $actor): self
     {
@@ -387,7 +387,7 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
      * Masked phases keyed by the phase key the read layer matches on.
      *
      * Declared names go through the phase map first, exactly like collapsible(), so a view
-     * may mask a phase by its group key or by any state inside it.
+     * may mask a phase by its key or by any state inside it.
      *
      * @return array<string, int|string|Closure>
      */
@@ -421,7 +421,7 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
      * Which phases this read collapses, or null when it collapses all of them.
      *
      * Declared names are resolved through the phase map first, so a view may name a phase
-     * by its group key or by any state inside it and both land on the same phase.
+     * by its key or by any state inside it and both land on the same phase.
      *
      * @return Closure(string): bool|null
      */

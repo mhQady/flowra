@@ -78,6 +78,9 @@ class WorkflowCache
         Cache::store(config('flowra.cache_driver'))->forget(self::k($workflow, 'transitions'));
         Cache::store(config('flowra.cache_driver'))->forget(self::k($workflow, 'statesEnum'));
         Cache::store(config('flowra.cache_driver'))->forget(self::k($workflow, 'states'));
+        Cache::store(config('flowra.cache_driver'))->forget(self::k($workflow, 'phases'));
+        Cache::store(config('flowra.cache_driver'))->forget(self::k($workflow, 'phaseParents'));
+        // Keys written before state groups were renamed to phases; nothing reads them anymore.
         Cache::store(config('flowra.cache_driver'))->forget(self::k($workflow, 'stateGroups'));
         Cache::store(config('flowra.cache_driver'))->forget(self::k($workflow, 'stateGroupParents'));
     }

@@ -161,8 +161,8 @@ final class RegistryEntry implements Arrayable, JsonSerializable
      * Human label for the entry — the state it stands at, not the move that got it there.
      *
      * A leaf is named after the state it landed in (`to`), so a timeline reads as the
-     * statuses the model went through. A collapsed entry stands in for a whole state
-     * group, so it is named after the group instead of any single state inside it.
+     * statuses the model went through. A collapsed entry stands in for a whole phase, so
+     * it is named after the phase instead of any single state inside it.
      *
      * A collapsed entry keeps its own key and label and resolves through phaseLabel(). A
      * leaf looks only at the state it landed in: flowra::flowra.states.{to}, else a
@@ -193,7 +193,7 @@ final class RegistryEntry implements Arrayable, JsonSerializable
 
     /**
      * Human name of the state the entry landed in — the status a leaf is named after, and
-     * for a collapsed entry the state its run ended at (not the group; that is label()).
+     * for a collapsed entry the state its run ended at (not the phase; that is label()).
      */
     public function toLabel(): ?string
     {
@@ -201,12 +201,12 @@ final class RegistryEntry implements Arrayable, JsonSerializable
     }
 
     /**
-     * Human name of the state group the entry sits in, or null when its landing state
-     * belongs to no group.
+     * Human name of the phase the entry sits in, or null when its landing state belongs
+     * to no phase.
      *
      * A leaf carries this too, so a row of a phase the view left expanded can still say
      * which step it belonged to. Resolution order:
-     *   1. the label declared on the StateGroup, used as a translation key and falling
+     *   1. the label declared on the Phase, used as a translation key and falling
      *      back to itself when it is a literal;
      *   2. flowra::flowra.phases.{phase};
      *   3. a humanized phase key.
@@ -343,10 +343,10 @@ final class RegistryEntry implements Arrayable, JsonSerializable
     public function toArray(): array
     {
         $entry = [
-            // What the entry is: a leaf's landing state ('docs_ok'), or a phase's group key
+            // What the entry is: a leaf's landing state ('docs_ok'), or a phase's key
             // ('under_review'). Not unique across a timeline — two moves can land on one state.
             'key' => $this->key,
-            // Human name for `key`: the landing state's name on a leaf, the group's on a phase.
+            // Human name for `key`: the landing state's name on a leaf, the phase's own on a phase.
             'label' => $this->label(),
             // What kind of entry this is.
             'type' => [
@@ -359,9 +359,9 @@ final class RegistryEntry implements Arrayable, JsonSerializable
             // The transition key that wrote the row. Null on a phase, which stands for
             // several — each child carries its own.
             'transition' => $this->transition,
-            // The state group the landing state sits in: {key, label, started_at, ended_at}.
-            // The two timings are filled only on a phase entry. Null when the state is
-            // ungrouped, and always on a jump.
+            // The phase the landing state sits in: {key, label, started_at, ended_at}.
+            // The two timings are filled only on a phase entry. Null when the state belongs
+            // to no phase, and always on a jump.
             'phase' => $this->phaseValue(),
 
             // The state moved out of: {key, label}. On a phase, where the run began.
@@ -403,10 +403,10 @@ final class RegistryEntry implements Arrayable, JsonSerializable
     }
 
     /**
-     * The phase as it travels in the payload — everything the entry knows about the group
+     * The phase as it travels in the payload — everything the entry knows about the phase
      * it sits in, in one value.
      *
-     * Null when the landing state belongs to no group (a jump included, which never carries
+     * Null when the landing state belongs to no phase (a jump included, which never carries
      * a phase), so a client tests the field rather than reaching into it.
      *
      * The timings answer "how long was this phase", which only an entry that *stands for*

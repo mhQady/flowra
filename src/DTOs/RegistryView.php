@@ -131,7 +131,7 @@ final class RegistryView
     /**
      * Collapse only these phases; every other row stays a leaf.
      *
-     * Whether a phase collapses is a property of the audience, not of the group — so one
+     * Whether a phase collapses is a property of the audience, not of the phase — so one
      * view may collapse 'under_review' and expand 'fulfilment' while another does the
      * opposite. Implies the collapsed shape.
      *
@@ -169,9 +169,9 @@ final class RegistryView
     /**
      * Normalize a phase reference to the key the phase map is indexed by.
      *
-     * A phase is named either by its group key or by any state enum case, so a caller may
+     * A phase is named either by its own key or by any state enum case, so a caller may
      * say `collapse('under_review')` or `collapse(S::IN_REVIEW)`. A member state is mapped
-     * onto its group at read time, where the workflow's phase map is available.
+     * onto its phase at read time, where the workflow's phase map is available.
      */
     public static function phaseKey(UnitEnum|string $phase): string
     {
@@ -269,7 +269,7 @@ final class RegistryView
      * parent's children are masked too, and participants() names only the stand-in — so a
      * serialized view carries the real actor nowhere. registry() stays untouched.
      *
-     * Name the phase by its group key or by any state inside it. The stand-in is an actor
+     * Name the phase by its key or by any state inside it. The stand-in is an actor
      * id, a translatable actor key, or a closure
      * `fn (array $rows, HasWorkflowContract $owner, mixed $viewer): int|string|null`.
      * RegistryActorEnum strategies are deliberately not accepted: a strategy picks a real

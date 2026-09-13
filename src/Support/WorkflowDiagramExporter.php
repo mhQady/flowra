@@ -4,7 +4,7 @@ namespace Flowra\Support;
 
 use BackedEnum;
 use Flowra\Concretes\BaseWorkflow;
-use Flowra\DTOs\StateGroup;
+use Flowra\DTOs\Phase;
 use Flowra\DTOs\Transition;
 use Illuminate\Support\Arr;
 use InvalidArgumentException;
@@ -27,8 +27,8 @@ class WorkflowDiagramExporter
     /**
      * @return array{
      *     class: class-string<BaseWorkflow>,
-     *     states: array<string, array{id: string, label: string, group: string|null, is_group: bool}>,
-     *     groups: array<int, array{key: string, children: array<int, string>}>,
+     *     states: array<string, array{id: string, label: string, phase: string|null, is_phase: bool}>,
+     *     phases: array<int, array{key: string, children: array<int, string>}>,
      *     transitions: array<int, array{key: string, from: string, to: string}>
      * }
      */
@@ -69,37 +69,37 @@ class WorkflowDiagramExporter
             ];
         }
 
-        $groups = [];
+        $phases = [];
 
-        foreach ($workflowClass::stateGroups() as $group) {
-            if ($group instanceof StateGroup) {
-                $group = $group->toArray();
+        foreach ($workflowClass::phases() as $phase) {
+            if ($phase instanceof Phase) {
+                $phase = $phase->toArray();
             }
 
-            $groupStateMeta = Arr::get($group, 'state');
+            $phaseStateMeta = Arr::get($phase, 'state');
 
-            if (!$groupStateMeta) {
+            if (!$phaseStateMeta) {
                 continue;
             }
 
-            $groupKey = (string) Arr::get($groupStateMeta, 'key');
-            $groupLabel = $this->groupLabel($groupStateMeta);
+            $phaseKey = (string) Arr::get($phaseStateMeta, 'key');
+            $phaseLabel = $this->stateMetaLabel($phaseStateMeta);
 
-            $this->registerState($states, $usedIdentifiers, $groupKey, $groupLabel, true);
+            $this->registerState($states, $usedIdentifiers, $phaseKey, $phaseLabel, true);
 
             $childKeys = [];
-            foreach (Arr::get($group, 'children', []) as $childMeta) {
+            foreach (Arr::get($phase, 'children', []) as $childMeta) {
                 $childKey = (string) Arr::get($childMeta, 'key');
-                $childLabel = $this->groupLabel($childMeta);
+                $childLabel = $this->stateMetaLabel($childMeta);
 
                 $this->registerState($states, $usedIdentifiers, $childKey, $childLabel);
 
-                $states[$childKey]['group'] = $groupKey;
+                $states[$childKey]['phase'] = $phaseKey;
                 $childKeys[] = $childKey;
             }
 
-            $groups[] = [
-                'key' => $groupKey,
+            $phases[] = [
+                'key' => $phaseKey,
                 'children' => $childKeys,
             ];
         }
@@ -107,7 +107,7 @@ class WorkflowDiagramExporter
         return [
             'class' => $workflowClass,
             'states' => $states,
-            'groups' => $groups,
+            'phases' => $phases,
             'transitions' => $transitions,
         ];
     }
@@ -119,16 +119,16 @@ class WorkflowDiagramExporter
             sprintf('    %% %s', $workflow['class']),
         ];
 
-        foreach ($workflow['groups'] as $group) {
-            $groupState = $workflow['states'][$group['key']] ?? null;
+        foreach ($workflow['phases'] as $phase) {
+            $phaseState = $workflow['states'][$phase['key']] ?? null;
 
-            if (!$groupState) {
+            if (!$phaseState) {
                 continue;
             }
 
-            $lines[] = sprintf('    state "%s" as %s {', $groupState['label'], $groupState['id']);
+            $lines[] = sprintf('    state "%s" as %s {', $phaseState['label'], $phaseState['id']);
 
-            foreach ($group['children'] as $childKey) {
+            foreach ($phase['children'] as $childKey) {
                 $child = $workflow['states'][$childKey] ?? null;
                 if (!$child) {
                     continue;
@@ -141,7 +141,7 @@ class WorkflowDiagramExporter
         }
 
         foreach ($workflow['states'] as $state) {
-            if ($state['group'] !== null || $state['is_group']) {
+            if ($state['phase'] !== null || $state['is_phase']) {
                 continue;
             }
 
@@ -169,15 +169,15 @@ class WorkflowDiagramExporter
             '',
         ];
 
-        foreach ($workflow['groups'] as $group) {
-            $groupState = $workflow['states'][$group['key']] ?? null;
-            if (!$groupState) {
+        foreach ($workflow['phases'] as $phase) {
+            $phaseState = $workflow['states'][$phase['key']] ?? null;
+            if (!$phaseState) {
                 continue;
             }
 
-            $lines[] = sprintf('state "%s" as %s {', $groupState['label'], $groupState['id']);
+            $lines[] = sprintf('state "%s" as %s {', $phaseState['label'], $phaseState['id']);
 
-            foreach ($group['children'] as $childKey) {
+            foreach ($phase['children'] as $childKey) {
                 $child = $workflow['states'][$childKey] ?? null;
                 if (!$child) {
                     continue;
@@ -191,7 +191,7 @@ class WorkflowDiagramExporter
         }
 
         foreach ($workflow['states'] as $state) {
-            if ($state['group'] !== null || $state['is_group']) {
+            if ($state['phase'] !== null || $state['is_phase']) {
                 continue;
             }
 
@@ -218,7 +218,7 @@ class WorkflowDiagramExporter
         array &$usedIdentifiers,
         string $key,
         string $label,
-        bool $isGroup = false
+        bool $isPhase = false
     ): void {
         if ($key === '') {
             $key = spl_object_hash((object) []);
@@ -228,8 +228,8 @@ class WorkflowDiagramExporter
             $states[$key] = [
                 'id' => $this->identifierFrom($key, $usedIdentifiers),
                 'label' => $label !== '' ? $label : $key,
-                'group' => null,
-                'is_group' => $isGroup,
+                'phase' => null,
+                'is_phase' => $isPhase,
             ];
             return;
         }
@@ -238,8 +238,8 @@ class WorkflowDiagramExporter
             $states[$key]['label'] = $label;
         }
 
-        if ($isGroup) {
-            $states[$key]['is_group'] = true;
+        if ($isPhase) {
+            $states[$key]['is_phase'] = true;
         }
     }
 
@@ -268,7 +268,7 @@ class WorkflowDiagramExporter
     /**
      * @param  array<string, mixed>  $meta
      */
-    private function groupLabel(array $meta): string
+    private function stateMetaLabel(array $meta): string
     {
         $name = (string) ($meta['name'] ?? '');
         $value = (string) ($meta['value'] ?? '');

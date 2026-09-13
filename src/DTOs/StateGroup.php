@@ -2,81 +2,23 @@
 
 namespace Flowra\DTOs;
 
-use UnitEnum;
-
-/**
- * A named set of states.
+/*
+ * Phase under the name it had before "state group" became "phase".
  *
- * A group serves two purposes at once:
- *
- *   - the query scopes expand it, so you can ask for a coarse step and match every fine
- *     state inside it;
- *   - the registry read layer treats it as a **phase** — the logical step a collapsed view
- *     shows in place of the individual rows that landed inside it.
- *
- * The group is keyed by its `state`, which may be a real enum case (a parent state that
- * contains sub-states, the shape `flowra:import-workflow` generates) or a plain string
- * (a synthetic step name like 'under_review' that no transition ever lands on).
- *
- * A group never decides *whether* it collapses — that is a per-view choice, so the same
- * group can be collapsed in one registry view and expanded in another. See
- * RegistryView::collapse() / dontCollapse().
+ * Autoloading Flowra\DTOs\StateGroup lands here and registers it as an alias of Phase, so
+ * StateGroup::make() returns a Phase and `instanceof` holds both ways. Delete this file at the
+ * next breaking release — see Traits\Workflow\HasStateGroupAliases for the rest of the layer.
  */
-final class StateGroup
-{
-    private UnitEnum|string $state;
+class_alias(Phase::class, StateGroup::class);
 
+if (false) {
     /**
-     * @var array<int, UnitEnum|string>
-     */
-    private array $children = [];
-
-    /** Optional translation key (or literal label) for a collapsed entry of this phase. */
-    private ?string $label = null;
-
-    private function __construct(UnitEnum|string $state)
-    {
-        $this->state = $state;
-    }
-
-    public static function make(UnitEnum|string $state): self
-    {
-        return new self($state);
-    }
-
-    public function child(UnitEnum|string $state): self
-    {
-        $this->children[] = $state;
-
-        return $this;
-    }
-
-    public function children(UnitEnum|string ...$states): self
-    {
-        array_push($this->children, ...$states);
-
-        return $this;
-    }
-
-    /**
-     * Label for a collapsed entry of this phase.
+     * Never declared — describes the alias above to IDEs and classmap scanners.
      *
-     * Resolved at read time as a translation key, falling back to itself when it is a
-     * literal. Leave it out to use flowra::flowra.phases.{key}, then a humanized key.
+     * @deprecated Use Phase.
+     * @mixin Phase
      */
-    public function label(string $label): self
+    final class StateGroup
     {
-        $this->label = $label;
-
-        return $this;
-    }
-
-    public function toArray(): array
-    {
-        return [
-            'state' => $this->state,
-            'children' => $this->children,
-            'label' => $this->label,
-        ];
     }
 }

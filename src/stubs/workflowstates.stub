@@ -8,17 +8,17 @@ enum {{ states_class }}: string
     case STEP_ONE_COMPLETED = 'step_one_completed';
 
 //    /**
-//     * Optionally group the states of this workflow.
+//     * Optionally split the states of this workflow into phases.
 //     *
-//     * A group is also a phase: the query scopes expand it into its states, and a
-//     * collapsed registry view shows it in place of the rows that landed inside it.
+//     * The query scopes expand a phase into its states, and a collapsed registry view
+//     * shows it in place of the rows that landed inside it.
 //     *
 //     * @return array
 //     */
-//    public static function groups(): array
+//    public static function phases(): array
 //    {
 //        return [
-//            \Flowra\DTOs\StateGroup::make(self::INIT)
+//            \Flowra\DTOs\Phase::make(self::INIT)
 //                ->children(self::STEP_ONE_COMPLETED),
 //        ];
 //    }

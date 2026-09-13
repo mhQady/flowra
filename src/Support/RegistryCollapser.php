@@ -10,9 +10,9 @@ use Flowra\Models\Registry;
 /**
  * Turns registry rows into registry-view entries.
  *
- * A row belongs to a phase when the state it landed in (`to`) belongs to that phase's state
- * group. Transitions declare nothing — move a state into a group and every row that ever
- * landed there is part of the phase, including rows written before the group existed.
+ * A row belongs to a phase when the state it landed in (`to`) belongs to that phase.
+ * Transitions declare nothing — move a state into a phase and every row that ever landed
+ * there is part of it, including rows written before the phase existed.
  *
  * Collapsing rules (all deliberate, see the README):
  *   - only CONSECUTIVE rows of the same phase merge; a phase re-entered later in the
@@ -20,7 +20,7 @@ use Flowra\Models\Registry;
  *   - a run of one row is still wrapped, so a phase's label never depends on how many
  *     internal transitions happened to be recorded;
  *   - jumpTo() rows are never collapsed and break any run they land in;
- *   - a row landing in a state that belongs to no group carries no phase and passes
+ *   - a row landing in a state that belongs to no phase carries no phase and passes
  *     through as a leaf;
  *   - a phase the view chose not to collapse also passes through as leaves, while its
  *     rows keep their phase key.
@@ -32,7 +32,7 @@ use Flowra\Models\Registry;
  *
  * Masking asks a different question of the same phase map. `phaseFor()` withholds a phase
  * from a jumpTo() row so a forced change can never hide inside a run — but a jump landing in
- * a masked group must still be masked, or the mask leaks exactly the actor it exists to
+ * a masked phase must still be masked, or the mask leaks exactly the actor it exists to
  * hide. So attribution gets `maskPhaseFor()`, which resolves the landing state's phase for
  * every row including jumps, while collapsing keeps using `phaseFor()`.
  */

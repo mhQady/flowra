@@ -46,12 +46,12 @@ it('generates workflow, states, and snippet files from a diagram', function () {
         ->and($workflowContents)->toContain('DemoWorkflowStates::INIT')
         ->and($statesContents)->toContain('enum DemoWorkflowStates: string')
         ->and($statesContents)->toContain("case INIT = 'init';")
-        ->and($statesContents)->toContain('use Flowra\\DTOs\\StateGroup;')
-        ->and($statesContents)->toContain('public static function groups(): array')
-        ->and($statesContents)->toContain('StateGroup::make(self::PREPARE_APPLICATION_INFO)')
+        ->and($statesContents)->toContain('use Flowra\\DTOs\\Phase;')
+        ->and($statesContents)->toContain('public static function phases(): array')
+        ->and($statesContents)->toContain('Phase::make(self::PREPARE_APPLICATION_INFO)')
         ->and($snippets)->toContain('DemoWorkflowStates')
         ->and($snippets)->toContain('Transition::make')
-        ->and($snippets)->toContain('StateGroup::make(self::PREPARE_APPLICATION_INFO)');
+        ->and($snippets)->toContain('Phase::make(self::PREPARE_APPLICATION_INFO)');
 
     $cleanup();
 });

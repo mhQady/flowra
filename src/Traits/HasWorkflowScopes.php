@@ -294,11 +294,11 @@ trait HasWorkflowScopes
     /**
      * Expand a state into the status values it should match.
      *
-     * A group (or phase) key expands to every state inside it, plus itself — the key is a
-     * real state in the hierarchical shape, and harmless as a synthetic phase name that no
-     * row ever stores. Anything else means itself: asking for a member state must never
-     * widen to its whole group, and must never be rewritten into a group key that the
-     * status table does not contain.
+     * A phase key expands to every state inside it, plus itself — the key is a real state
+     * in the hierarchical shape, and harmless as a synthetic phase name that no row ever
+     * stores. Anything else means itself: asking for a member state must never widen to its
+     * whole phase, and must never be rewritten into a phase key that the status table does
+     * not contain.
      *
      * @return array<int, string>
      */
@@ -306,11 +306,11 @@ trait HasWorkflowScopes
     {
         $value = $this->stringifyState($state);
 
-        if (!$workflowClass || !method_exists($workflowClass, 'stateGroupChildren')) {
+        if (!$workflowClass || !method_exists($workflowClass, 'phaseChildren')) {
             return [$value];
         }
 
-        $children = $workflowClass::stateGroupChildren($state);
+        $children = $workflowClass::phaseChildren($state);
 
         if ($children === []) {
             return [$value];

@@ -39,9 +39,9 @@ Releases are automated with release-please (`.github/workflows/release-please.ym
 1. **Model side** — a host app's Eloquent model uses the `Flowra\Concretes\HasWorkflow` trait (note: it lives in `Concretes`, not `Traits`, despite what the README shows), implements `HasWorkflowContract`, and lists workflow classes in `protected static array $workflows`. The trait composes:
    - `WorkflowAware` — registers a `WorkflowCast` attribute cast per workflow, so `$order->orderWorkflow` (camelCase of the class basename) returns a hydrated workflow instance bound to that model.
    - `HasWorkflowRelations` — uses `resolveRelationUsing()` to register `{alias}Status` (morphOne) and `{alias}Registry` (morphMany) relations per workflow, plus generic `statuses()` / `registry()`.
-   - `HasWorkflowScopes` — query scopes (`whereCurrentStatus`, etc.) plus per-workflow builder macros like `whereOrderWorkflowCurrentStatus(...)` that accept enum cases, values, or state-group names.
+   - `HasWorkflowScopes` — query scopes (`whereCurrentStatus`, etc.) plus per-workflow builder macros like `whereOrderWorkflowCurrentStatus(...)` that accept enum cases, values, or phase keys.
 
-2. **Workflow side** — workflow classes extend `Flowra\Concretes\BaseWorkflow` and define `transitionsSchema(): array` returning `Transition::make(key, from, to)->guard(...)->action(...)` DTOs. **States are resolved by naming convention**: for `OrderWorkflow`, `HasStates::resolveStatesEnum()` requires an enum named `OrderWorkflowStates` in the same namespace. The states enum uses the `Flowra\Enums\BaseEnum` trait and may define a static `groups(): array` of `StateGroup` DTOs.
+2. **Workflow side** — workflow classes extend `Flowra\Concretes\BaseWorkflow` and define `transitionsSchema(): array` returning `Transition::make(key, from, to)->guard(...)->action(...)` DTOs. **States are resolved by naming convention**: for `OrderWorkflow`, `HasStates::resolveStatesEnum()` requires an enum named `OrderWorkflowStates` in the same namespace. The states enum uses the `Flowra\Enums\BaseEnum` trait and may define a static `phases(): array` of `Phase` DTOs. Phases were called *state groups* before: `StateGroup`, enum `groups()` and the `stateGroup*()` helpers still work as deprecated aliases (`src/DTOs/StateGroup.php`, `Traits/Workflow/HasStateGroupAliases`, and a fallback in `HasPhases::compilePhases()`).
 
 ### Custom boot/initialize system
 
@@ -49,7 +49,7 @@ Releases are automated with release-please (`.github/workflows/release-please.ym
 
 ### Definition caching (two layers)
 
-Workflow definitions (transitions, states, state groups) are memoized in static properties per workflow class, and optionally persisted forever through `Support/WorkflowCache` into a Laravel cache store (keys `flowra:workflow:{class}:{key}`). Controlled by `flowra.cache_workflows` / `flowra.cache_driver` config. Transitions handed to callers are always **clones** of the cached ones (`HasTransitions::cloneTransitions()`) so per-use state like `appliedBy`/`comments` doesn't leak between uses.
+Workflow definitions (transitions, states, phases) are memoized in static properties per workflow class, and optionally persisted forever through `Support/WorkflowCache` into a Laravel cache store (keys `flowra:workflow:{class}:{key}`). Controlled by `flowra.cache_workflows` / `flowra.cache_driver` config. Transitions handed to callers are always **clones** of the cached ones (`HasTransitions::cloneTransitions()`) so per-use state like `appliedBy`/`comments` doesn't leak between uses.
 
 ### Transition lifecycle
 

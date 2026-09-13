@@ -9,10 +9,10 @@ return [
     'registry_view_not_defined' => 'Registry view (:view) is not defined for workflow (:workflow)',
 
     /*
-     * Labels for collapsed registry entries, keyed by the phase key — the key of the
-     * StateGroup the states belong to. A collapsed entry stands in for the whole group, so
-     * it is named after the group, never after a single state inside it. Missing keys fall
-     * back to a humanized key ("under_review" => "Under Review").
+     * Labels for collapsed registry entries, keyed by the phase key — the key of the Phase
+     * the states belong to. A collapsed entry stands in for the whole phase, so it is named
+     * after the phase, never after a single state inside it. Missing keys fall back to a
+     * humanized key ("under_review" => "Under Review").
      */
     'phases' => [
         // 'under_review' => 'Under Review',

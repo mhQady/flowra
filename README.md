@@ -25,7 +25,7 @@ $order->orderWorkflow->registryView('customer')->for($user)->get();
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-- [Defining Workflows](#defining-workflows) — states, state groups, guards, actions
+- [Defining Workflows](#defining-workflows) — states, phases, guards, actions
 - [Applying Transitions](#applying-transitions) — inspecting, state jumps, bulk transitions
 - [Querying Models by State](#querying-models-by-state)
 - [Registry Views](#registry-views) — phases, conditions, attribution, masking, labels, JSON
@@ -44,7 +44,7 @@ $order->orderWorkflow->registryView('customer')->for($user)->get();
 - Current state stored in a `statuses` table; every transition appended to a `statuses_registry` audit table.
 - Transitions defined as fluent `Transition::make()` DTOs with guards and actions.
 - Guards and actions as closures, class names (container-resolved), or instances.
-- State groups for organizing related states and querying them as one unit.
+- Phases for organizing related states into logical steps and querying them as one unit.
 - State jumps (`jumpTo`) to force a state outside the defined transitions (admin resets, corrections).
 - Bulk transitions across many models with per-item error collection.
 - Auto-registered Eloquent relations and query scopes per workflow.
@@ -200,13 +200,13 @@ That is a working workflow. The sections below cover each piece in depth.
 
 ## Defining Workflows
 
-### State Groups
+### Phases
 
-State groups let you treat several **states** as one logical unit. Define them with a static
-`groups()` method on the states enum:
+Phases let you treat several **states** as one logical step. Define them with a static
+`phases()` method on the states enum:
 
 ```php
-use Flowra\DTOs\StateGroup;
+use Flowra\DTOs\Phase;
 
 enum OrderWorkflowStates: string
 {
@@ -214,40 +214,60 @@ enum OrderWorkflowStates: string
     case PROCESSING = 'processing';
     case COMPLETED  = 'completed';
 
-    public static function groups(): array
+    public static function phases(): array
     {
         return [
-            StateGroup::make('active')->children(self::PENDING, self::PROCESSING),
+            Phase::make('active')->children(self::PENDING, self::PROCESSING),
         ];
     }
 }
 ```
 
-A group's key is either a synthetic name like `'active'` that no transition ever lands on, or a
-real state case that contains sub-states (`StateGroup::make(self::PENDING)->children(...)`).
-`->label()` optionally names the group for display — see [Labels and translations](#labels-and-translations).
+A phase's key is either a synthetic name like `'active'` that no transition ever lands on, or a
+real state case that contains sub-states (`Phase::make(self::PENDING)->children(...)`).
+`->label()` optionally names the phase for display — see [Labels and translations](#labels-and-translations).
 
-Group helpers are available on every workflow class:
+Phase helpers are available on every workflow class:
 
 ```php
-OrderWorkflow::stateGroups();                                   // all groups
-OrderWorkflow::stateGroupChildren('active');                    // children metadata
-OrderWorkflow::stateParentGroup(OrderWorkflowStates::PENDING);  // parent group metadata
-OrderWorkflow::isGroupedState('active');                        // true
-OrderWorkflow::hasParentGroup(OrderWorkflowStates::PENDING);    // true
+OrderWorkflow::phases();                                        // all phases, keyed by phase key
+OrderWorkflow::phase('active');                                 // one phase's metadata, by its key
+OrderWorkflow::phaseChildren('active');                         // children metadata
+OrderWorkflow::stateParentPhase(OrderWorkflowStates::PENDING);  // parent phase metadata
+OrderWorkflow::isPhase('active');                               // true
+OrderWorkflow::hasParentPhase(OrderWorkflowStates::PENDING);    // true
 ```
 
 One declaration serves two purposes:
 
-- **Querying** — passing a group name to a scope matches every state inside it
-  (see [Querying Models by State](#querying-models-by-state)).
-- **History** — a group is also a [phase](#phases): a collapsed registry view shows it as one
-  step in place of the individual rows that landed inside it. Whether a phase actually
-  collapses is decided per view.
+- **Querying** — passing a phase key to a scope matches every state inside it
+  (see [Querying by phase](#querying-by-phase)).
+- **History** — a collapsed registry view shows a phase as one step in place of the individual
+  rows that landed inside it (see [Phases in registry views](#phases-in-registry-views)). Whether
+  a phase actually collapses is decided per view.
 
-> **Keep groups one level deep.** A state should belong to at most one group, and groups do not
+> **Keep phases one level deep.** A state should belong to at most one phase, and phases do not
 > nest — nesting would make run detection recursive and the spanning `from`/`to` ambiguous.
-> This is not validated: if a state appears in two groups, the later declaration wins.
+> This is not validated: if a state appears in two phases, the later declaration wins.
+
+#### Migrating from state groups
+
+Phases used to be called *state groups*. The old names still work, but they are deprecated and
+will be removed in a future breaking release:
+
+| Deprecated | Use instead |
+|---|---|
+| `Flowra\DTOs\StateGroup` | `Flowra\DTOs\Phase` |
+| `groups()` on the states enum | `phases()` — `groups()` is only read when the enum has no `phases()` |
+| `stateGroups()` | `phases()` |
+| `stateGroupFor()` | `phase()` |
+| `stateGroupChildren()` | `phaseChildren()` |
+| `stateParentGroup()` | `stateParentPhase()` |
+| `isGroupedState()` | `isPhase()` |
+| `hasParentGroup()` | `hasParentPhase()` |
+
+Phases are cached under new keys, so upgrading needs no cache flush; `WorkflowCache::forget()`
+also removes the keys the old names were cached under.
 
 ### Guards
 
@@ -330,7 +350,7 @@ $wf = $order->orderWorkflow;
 $wf->currentState;             // enum case or null
 $wf->currentStatus;            // Status model or null
 $wf->statesEnum();             // OrderWorkflowStates::class
-$wf->currentPhase();           // ['key' => 'active', 'label' => null], or null when ungrouped
+$wf->currentPhase();           // ['key' => 'active', 'label' => null], or null outside any phase
 ```
 
 ### State Jumps
@@ -437,11 +457,11 @@ Order::orWhereNotOrderWorkflowCurrentStatus(...);
 Order::withWhereOrderWorkflowCurrentStatus(OrderWorkflowStates::PENDING)->get();
 ```
 
-### Querying by state group
+### Querying by phase
 
-Passing a **group name** expands to the group's child states (plus the group key itself, which
+Passing a **phase key** expands to the phase's child states (plus the phase key itself, which
 matters when the key is a real state). Passing a **member state** matches only that state — it
-never widens to the whole group:
+never widens to the whole phase:
 
 ```php
 // Matches orders whose current state is 'pending' OR 'processing'
@@ -468,7 +488,7 @@ collapsed on write, no column is added, and `registry()` keeps returning everyth
 
 A view decides four things for its audience:
 
-1. **Shape** — one entry per row (`detailed`), or runs of rows folded into [phases](#phases) (`collapsed`).
+1. **Shape** — one entry per row (`detailed`), or runs of rows folded into [phases](#phases-in-registry-views) (`collapsed`).
 2. **Visibility** — which rows the audience may see ([conditions](#filtering-rows-per-audience)).
 3. **Attribution** — which actor each entry renders as ([appliedBy](#who-an-entry-is-attributed-to)).
 4. **Privacy** — whose identity must be hidden ([masks](#hiding-an-actor-with-masks)).
@@ -585,8 +605,8 @@ foreach ($entries as $entry) {
     $entry->toLabel();        // "Approved"
     $entry->fromState();      // OrderWorkflowStates::SUBMITTED, or null
     $entry->toState();        // OrderWorkflowStates::APPROVED, or null
-    $entry->phase;            // 'under_review' — the group the landing state sits in
-    $entry->phaseLabel();     // "Under Review", or null when the state is ungrouped
+    $entry->phase;            // 'under_review' — the phase the landing state sits in
+    $entry->phaseLabel();     // "Under Review", or null when the state is in no phase
     $entry->type;             // 1 transition | 2 reset (a jump) | 3 phase (a collapsed run)
     $entry->type();           // TransitionTypesEnum case
     $entry->typeLabel();      // "Transition" — the name for that kind
@@ -631,17 +651,17 @@ Same call either way, but two strategies run underneath:
 
 For a pathological registry, bound the rows yourself through `->query()`.
 
-### Phases
+### Phases in registry views
 
-A **phase** is the logical step a collapsed view shows in place of the individual rows behind it.
-A phase *is* a [state group](#state-groups): a registry row belongs to a phase when the state it
-landed in (`to`) sits in that group. Transitions declare nothing, so moving a state into a group
-also applies to rows written before the group existed.
+A [phase](#phases) is the logical step a collapsed view shows in place of the individual rows
+behind it: a registry row belongs to a phase when the state it landed in (`to`) sits in that
+phase. Transitions declare nothing, so moving a state into a phase also applies to rows written
+before the phase existed.
 
 The examples in this section use a review process:
 
 ```php
-use Flowra\DTOs\StateGroup;
+use Flowra\DTOs\Phase;
 use Flowra\Enums\BaseEnum;
 
 enum OrderWorkflowStates: string
@@ -657,11 +677,11 @@ enum OrderWorkflowStates: string
     case ARCHIVED  = 'archived';
 
     /** Declaration order is phase order. */
-    public static function groups(): array
+    public static function phases(): array
     {
         return [
-            StateGroup::make('under_review')->children(self::IN_REVIEW, self::DOCS_OK, self::SCORED),
-            StateGroup::make('closed')->children(self::APPROVED, self::ARCHIVED),
+            Phase::make('under_review')->children(self::IN_REVIEW, self::DOCS_OK, self::SCORED),
+            Phase::make('closed')->children(self::APPROVED, self::ARCHIVED),
         ];
     }
 }
@@ -681,19 +701,19 @@ a **detailed** read returns five entries, one per row. A **collapsed** read retu
 
 | Entry `key` | Kind | Rows | from → to | applied_by | participants |
 |---|---|---|---|---|---|
-| `submitted` | leaf (ungrouped state) | 1 | draft → submitted | 5 | `[5]` |
+| `submitted` | leaf (state in no phase) | 1 | draft → submitted | 5 | `[5]` |
 | `under_review` | phase | 2–4 | submitted → scored | 8 | `[7, 8]` |
 | `closed` | phase | 5 | scored → approved | 9 | `[9]` |
 
 **An entry *is* the status it stands at**, not the move that got it there. A collapsed entry's
-`key` is the group it stands for; a leaf's `key` is the state it landed in. The move itself is
+`key` is the phase it stands for; a leaf's `key` is the state it landed in. The move itself is
 never lost — a leaf carries it on `transition`, and a collapsed entry has one per child:
 
 ```php
 $entry->key;         // 'docs_ok'      — a leaf: the state it landed in
 $entry->transition;  // 'docs_checked' — the move that put it there
 
-$phase->key;         // 'under_review' — a collapsed entry: the group it stands for
+$phase->key;         // 'under_review' — a collapsed entry: the phase it stands for
 $phase->transition;  // null           — it stands for several moves, all on ->children
 ```
 
@@ -702,7 +722,7 @@ A jump is keyed the same way, by where it landed; the name it was forced under s
 
 > **A phase ends when the model leaves its states.** A transition out of the phase
 > (`approve`, scored → approved) belongs to the phase it moved *into*, not the one it left.
-> Group your outcome states and the timeline reads as a clean run of phases.
+> Put your outcome states in a phase too and the timeline reads as a clean run of phases.
 
 > **A self-loop inside a phase is absorbed.** A row that lands back on a state already inside
 > the phase is part of it. To keep such a step visible, either move it to a state outside the
@@ -717,14 +737,14 @@ OrderWorkflow::phaseForState(OrderWorkflowStates::DOCS_OK);
 OrderWorkflow::statePhases();            // state value => phase, in declaration order
 ```
 
-> **Adding phases to a live app?** Group definitions are cached forever when `cache_workflows`
-> is on, so clear them once after declaring groups — otherwise the stale payload has no phases
+> **Adding phases to a live app?** Phase definitions are cached forever when `cache_workflows`
+> is on, so clear them once after declaring phases — otherwise the stale payload has no phases
 > and collapsing quietly does nothing:
 > `Flowra\Support\WorkflowCache::forget(OrderWorkflow::class)`.
 
 ### Choosing what collapses
 
-Collapsing is a property of the **audience**, not of the group. Each view decides, so two views
+Collapsing is a property of the **audience**, not of the phase. Each view decides, so two views
 over the same rows can disagree:
 
 ```php
@@ -734,7 +754,7 @@ RegistryView::make('ops')->dontCollapse('under_review');       // every phase ex
 RegistryView::make('audit')->detailed();                       // nothing
 ```
 
-Name a phase by its group key or by any state inside it — `collapse(OrderWorkflowStates::DOCS_OK)`
+Name a phase by its key or by any state inside it — `collapse(OrderWorkflowStates::DOCS_OK)`
 and `collapse('under_review')` mean the same thing. `collapse()` and `dontCollapse()` both imply
 the collapsed shape; used together, the allow-list applies first and the deny-list subtracts
 from it.
@@ -767,7 +787,7 @@ In config, where closures cannot go:
 | **One-row phases** | Still wrapped, so a step's label never depends on how many internal transitions happened to be recorded. |
 | **Expanded phases** | A phase the view chose not to collapse passes through as leaves that keep their `phase` key, and breaks any run around it. |
 | **Jumps** | `jumpTo()` rows are **never** collapsed, carry no phase, and break any run they land in. A forced state change is exactly what an audit trail must not hide. |
-| **Ungrouped states** | A row landing in a state that belongs to no group carries no phase and passes through as a leaf. Renaming or removing a *transition* changes nothing — phases resolve from the state. |
+| **States in no phase** | A row landing in a state that belongs to no phase carries no phase and passes through as a leaf. Renaming or removing a *transition* changes nothing — phases resolve from the state. |
 
 ### Filtering rows per audience
 
@@ -845,7 +865,7 @@ $order->orderWorkflow->registryView('applicant')->appliedBy(99)->get();
 ```
 
 Who an entry renders as is a property of the **audience**, so it is declared on the view and never
-on the state group — the same phase can credit the warehouse in one view and the picker in another.
+on the phase — the same phase can credit the warehouse in one view and the picker in another.
 
 An applier is an actor id, a `RegistryActorEnum` strategy, or (everywhere except the config file) a
 closure receiving the registry rows behind the entry — one row for a leaf, the whole run for a
@@ -900,7 +920,7 @@ rejected them — mask the phase or the transition instead:
 ```php
 RegistryView::make('applicant')
     ->collapsed()
-    ->maskPhase('under_review', 'review_committee')  // group key, or any state in it
+    ->maskPhase('under_review', 'review_committee')  // phase key, or any state in it
     ->maskTransition('reject', 'review_committee');  // one transition, leaf or not
 
 // Per read, on top of whatever the view already masks.
@@ -948,17 +968,17 @@ tries a translation first and falls back to a humanized value (`under_review` �
 
 | Accessor | Resolution order | `null` when |
 |---|---|---|
-| `label()` on a **phase** | `StateGroup->label()` → `flowra::flowra.phases.{key}` → humanized key | never |
+| `label()` on a **phase** | `Phase->label()` → `flowra::flowra.phases.{key}` → humanized key | never |
 | `label()` on a **leaf** | `flowra::flowra.states.{to}` → humanized state | never |
 | `fromLabel()` / `toLabel()` | `flowra::flowra.states.{value}` → humanized value | there is no state |
-| `phaseLabel()` | same as a phase's `label()` | the state is ungrouped (always on a jump) |
+| `phaseLabel()` | same as a phase's `label()` | the state is in no phase (always on a jump) |
 | `typeLabel()` | `flowra::flowra.types.{transition\|reset\|phase}` → humanized case name | the stored type matches no case |
 
 A few details:
 
-- `StateGroup::make('under_review')->label('workflows.order.under_review')` is used as a
+- `Phase::make('under_review')->label('workflows.order.under_review')` is used as a
   translation key and falls back to itself — so it also accepts a literal like `'Under Review'`.
-- On a phase, `toLabel()` names the state the run **ended at**; the group itself is `label()` /
+- On a phase, `toLabel()` names the state the run **ended at**; the phase itself is `label()` /
   `phaseLabel()`.
 - `flowra::flowra.transitions.{key}` is consulted only for a row that recorded no landing state at
   all. A leaf that has one is always named after its state.
@@ -993,7 +1013,7 @@ $name = trans()->has($key) ? __($key) : User::find($entry->appliedBy)?->name;
 ### JSON payload
 
 `toArray()` / `jsonSerialize()` produce the shape below. This is the `under_review` entry from the
-[phases example](#phases), with default (untranslated) labels:
+[phases example](#phases-in-registry-views), with default (untranslated) labels:
 
 ```jsonc
 {
@@ -1037,7 +1057,7 @@ $name = trans()->has($key) ? __($key) : User::find($entry->appliedBy)?->name;
 | Field | Notes |
 |---|---|
 | `type.key` | `1` transition, `2` reset (a `jumpTo()`), `3` phase. There is no `collapsed` flag — `type.key === 3` *is* a collapsed entry. |
-| `phase`, `from`, `to` | `null` outright — not a shell of nulls — when there is no group or no state, so a client tests the field rather than reaching into it. |
+| `phase`, `from`, `to` | `null` outright — not a shell of nulls — when there is no phase or no state, so a client tests the field rather than reaching into it. |
 | `phase.started_at` / `ended_at` | Filled only on the entry that stands for the phase. A leaf inside a phase reports `null` rather than passing its own instant off as the step's duration. |
 | `applied_at` | One ISO-8601 instant: a leaf's `created_at`; on a phase, when the run began (equal to `phase.started_at`). |
 | `applied_by` | The rendered actor — the only actor in the payload. `recordedBy` stays on the DTO and in `registry()`. |
@@ -1049,7 +1069,7 @@ $name = trans()->has($key) ? __($key) : User::find($entry->appliedBy)?->name;
 Views are memoized per process and rebuilt on every application boot, but deliberately **not**
 pushed through `Support\WorkflowCache`: they can hold closures and bound objects, so persisting
 them would fail on every request. The phase map costs nothing extra — it is derived from the
-already-cached state groups.
+already-cached phases.
 
 ## Artisan Commands
 
@@ -1137,13 +1157,13 @@ registry append always succeed or fail together.
 
 ## Definition Caching
 
-When `cache_workflows` is enabled (the default), parsed states, transitions, and groups are stored
+When `cache_workflows` is enabled (the default), parsed states, transitions, and phases are stored
 **indefinitely** in the configured cache store under `flowra:workflow:{class}:{key}` keys, in
 addition to per-process memoization.
 
 Things to know:
 
-- **After changing a `transitionsSchema()`, a states enum, or its `groups()`, flush the cached
+- **After changing a `transitionsSchema()`, a states enum, or its `phases()`, flush the cached
   keys** — there is no registered cache-clear command in the current release. Call
   `Flowra\Support\WorkflowCache::forget(OrderWorkflow::class)`, clear your cache store (e.g.
   `php artisan cache:clear` for the relevant store), or delete keys matching `flowra:workflow:*`.
@@ -1210,7 +1230,7 @@ The name isn't registered in `registry_views.views` or the workflow's `registryV
 added it to config, run `php artisan config:clear`.
 
 **A collapsed view returns every row as a leaf**
-Check, in order: the landing states actually belong to a group; the group cache isn't stale
+Check, in order: the landing states actually belong to a phase; the phase cache isn't stale
 (`WorkflowCache::forget(OrderWorkflow::class)`); the view's `collapse()` / `expand` selection
 includes the phase; the rows aren't jumps, which never collapse.
 
@@ -1222,7 +1242,7 @@ A config view holds a closure. Move closure conditions and appliers to the workf
 An `appliedBy` or mask closure returned an object (e.g. a `User`). Return `$user->id` instead.
 
 **A phase label shows a raw key like `workflows.order.under_review`**
-`StateGroup->label()` is treated as a translation key and falls back to itself. Add the key to your
+`Phase->label()` is treated as a translation key and falls back to itself. Add the key to your
 lang files, or pass a literal label.
 
 ## Known Limitations
@@ -1232,8 +1252,8 @@ lang files, or pass a literal label.
   `BulkTransitionService` when you need audit metadata on bulk runs.
 - Diagram import (`flowra:import-workflow`) and cache warm/clear commands exist in the source but
   are not registered in the current release.
-- State groups (and therefore phases) are **one level deep**: a state belongs to at most one group,
-  and groups do not nest. Multi-group membership is not validated.
+- Phases are **one level deep**: a state belongs to at most one phase, and phases do not nest.
+  Multi-phase membership is not validated.
 - Collapsed registry reads, and reads behind a PHP-side condition, load all of the owner's rows for
   that workflow before paginating. Bound very large histories through `->query()`.
 - A mask hides an actor from a **rendered view**, not from the database: `registry()`, the raw
