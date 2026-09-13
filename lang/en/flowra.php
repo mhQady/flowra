@@ -7,6 +7,8 @@ return [
     'transition_not_applicable' => 'Applying transition (:transition) while current state is (:current) is not applicable, Model state must be (:from) so transition can be applied.',
     'state_required_on_jump' => 'State is not valid, state must be of type (:state)',
     'registry_view_not_defined' => 'Registry view (:view) is not defined for workflow (:workflow)',
+    'registry_actor_model_not_configured' => 'Registry actors cannot be resolved: set flowra.models.actor (or auth.providers.users.model) to an Eloquent model class',
+    'registry_actor_relation_morph_to' => 'Registry relation (:relation) is a MorphTo over applied_by, which cannot be resolved against the actor an entry renders as; declare it as a BelongsTo',
 
     /*
      * Labels for collapsed registry entries, keyed by the phase key — the key of the Phase

@@ -17,6 +17,7 @@ use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Collection;
 use IteratorAggregate;
 use JsonSerializable;
 use Traversable;
@@ -56,6 +57,15 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
     /** Stand-ins for masked transitions, keyed by transition key. */
     private array $maskedTransitions;
 
+    /** Relations eager-loaded on the rows; seeded from the view. @var array<int|string, string|Closure> */
+    private array $with;
+
+    /** Relations loaded on the rendered actor; null leaves the actor unresolved. @var array<int|string, string|Closure>|null */
+    private ?array $actorWith;
+
+    /** $with split into row relations and actor relations; rebuilt when with() changes. */
+    private ?array $relationSplit = null;
+
     private ?RegistryAttribution $attribution = null;
 
     private string $direction = 'asc';
@@ -74,6 +84,8 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
         $this->collapseExcept = $view->expandedPhases();
         $this->maskedPhases = $view->maskedPhases();
         $this->maskedTransitions = $view->maskedTransitions();
+        $this->with = $view->eagerLoads();
+        $this->actorWith = $view->actorEagerLoads();
     }
 
     public function detailed(): self
@@ -192,6 +204,32 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
         return $this;
     }
 
+    /**
+     * Eager-load relations on the rows, on top of whatever the view already loads.
+     *
+     * Same semantics as RegistryView::with(): leaves carry their row's relations, and a relation
+     * keyed on applied_by resolves against the actor every entry renders as.
+     */
+    public function with(string|array ...$relations): self
+    {
+        $this->with = RegistryView::mergeRelations($this->with, $relations);
+        $this->relationSplit = null;
+
+        return $this;
+    }
+
+    /**
+     * Resolve the actor every entry renders as, on top of whatever the view already loads on it.
+     *
+     * Same semantics as RegistryView::withActor().
+     */
+    public function withActor(string|array ...$relations): self
+    {
+        $this->actorWith = RegistryView::mergeRelations($this->actorWith ?? [], $relations);
+
+        return $this;
+    }
+
     /** Oldest entry first (the default). */
     public function oldest(): self
     {
@@ -238,6 +276,8 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
             )
             : RegistryCollapser::detailed($rows, $this->phases(), $this->statesEnum(), $this->attribution());
 
+        $entries = $this->hydrate($entries);
+
         return $this->direction === 'desc'
             ? $entries->reverse()->values()
             : $entries;
@@ -258,7 +298,7 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
         $page = $page ?: Paginator::resolveCurrentPage($pageName);
 
         if ($this->paginatesInSql()) {
-            return $this->query()
+            $paginator = $this->query()
                 ->paginate($perPage, ['*'], $pageName, $page)
                 ->through(function (Registry $row) {
                     $phase = RegistryCollapser::phaseFor($row, $this->phases());
@@ -267,10 +307,14 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
                         $row,
                         $phase['key'] ?? null,
                         $this->statesEnum(),
-                        $this->attribution()->row($row),
+                        // The mask phase, as RegistryCollapser::detailed() passes it — without it a
+                        // paginated read would render the actor a maskPhase() hides.
+                        $this->attribution()->row($row, RegistryCollapser::maskPhaseFor($row, $this->phases())),
                         $phase['label'] ?? null
                     );
                 });
+
+            return $paginator->setCollection($this->hydrate($paginator->getCollection()));
         }
 
         $entries = $this->get();
@@ -350,9 +394,53 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
             ->orderBy('created_at', $direction)
             ->orderBy('id', $direction);
 
+        ['rows' => $rowRelations, 'actors' => $actorRelations] = $this->relations();
+
+        if ($rowRelations !== []) {
+            $query->with($rowRelations);
+        }
+
+        if ($actorRelations !== []) {
+            // Never selected off the rows, where they would name the recorded actor — not even
+            // through the model's own $with. They resolve against the rendered actor in hydrate().
+            $query->without(array_keys($actorRelations));
+        }
+
         RegistryConditionResolver::scope($this->partition()['scopes'], $query, $owner, $this->viewer);
 
         return $query;
+    }
+
+    /**
+     * Attach what the read asked for beyond the rows — actor relations and the withActor()
+     * model — to every entry and child.
+     *
+     * @template TEntries of Collection<int, RegistryEntry>
+     *
+     * @param  TEntries  $entries
+     * @return TEntries
+     */
+    private function hydrate(Collection $entries): Collection
+    {
+        $actorRelations = $this->relations()['actors'];
+
+        if ($actorRelations !== []) {
+            $entries = RegistryRelationLoader::make($actorRelations)->load($entries);
+        }
+
+        if ($this->actorWith === null) {
+            return $entries;
+        }
+
+        return RegistryActorLoader::make($this->actorWith)->load($entries);
+    }
+
+    /**
+     * @return array{rows: array<int|string, string|Closure>, actors: array<string, array<int|string, string|Closure>>}
+     */
+    private function relations(): array
+    {
+        return $this->relationSplit ??= RegistryRelationLoader::split($this->with);
     }
 
     private function paginatesInSql(): bool

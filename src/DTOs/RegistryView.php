@@ -41,6 +41,12 @@ final class RegistryView
     /** Stand-in actors for masked transitions, keyed by transition key. @var array<string, int|string|Closure> */
     private array $maskedTransitions = [];
 
+    /** Relations eager-loaded on the registry rows, in Eloquent's with() syntax. @var array<int|string, string|Closure> */
+    private array $with = [];
+
+    /** Relations loaded on the rendered actor; null leaves the actor unresolved. @var array<int|string, string|Closure>|null */
+    private ?array $actorWith = null;
+
     private function __construct(public readonly string $name)
     {
     }
@@ -103,6 +109,17 @@ final class RegistryView
 
         foreach ((array) ($mask['transitions'] ?? []) as $transition => $actor) {
             $view->maskTransition((string) $transition, $actor);
+        }
+
+        if (($with = $definition['with'] ?? null) !== null) {
+            $view->with((array) $with);
+        }
+
+        // true for the bare actor, or the relations to load on it.
+        $withActor = $definition['with_actor'] ?? $definition['withActor'] ?? false;
+
+        if ($withActor !== false && $withActor !== null) {
+            $view->withActor($withActor === true ? [] : (array) $withActor);
         }
 
         foreach ((array) ($definition['conditions'] ?? []) as $condition) {
@@ -308,6 +325,79 @@ final class RegistryView
     public function maskedTransitions(): array
     {
         return $this->maskedTransitions;
+    }
+
+    /**
+     * Eager-load these relations on the registry rows this view reads.
+     *
+     * Takes Eloquent's own with() syntax — names, dotted nesting, or [name => constraint] — for any
+     * relation declared on the registry model. Everything lands on RegistryEntry::$relations:
+     *
+     *   - a row relation (files, notes, ...) is eager-loaded on the rows, so each leaf carries its
+     *     own; a phase entry has no row, so its children carry them;
+     *   - an actor relation — keyed on applied_by, see Registry::isActorRelation() — is never
+     *     loaded off the rows, where it would name the actor the row *recorded* and undo a mask.
+     *     It resolves against the actor each entry *renders as*, on every entry, phases included.
+     *
+     * Called more than once, the relations add up.
+     */
+    public function with(string|array ...$relations): self
+    {
+        $this->with = self::mergeRelations($this->with, $relations);
+
+        return $this;
+    }
+
+    /**
+     * Resolve the actor each entry renders as to a model, loading these relations on it.
+     *
+     * The actor is the rendered one — after masks, appliers and the system user — so a masked
+     * entry resolves to its stand-in, never to the actor it hides. Every entry and child is
+     * resolved in one query against config('flowra.models.actor'), falling back to the auth
+     * user model; a stand-in that is not a key of that model resolves to null.
+     *
+     * Called more than once, the relations add up.
+     */
+    public function withActor(string|array ...$relations): self
+    {
+        $this->actorWith = self::mergeRelations($this->actorWith ?? [], $relations);
+
+        return $this;
+    }
+
+    /** @return array<int|string, string|Closure> */
+    public function eagerLoads(): array
+    {
+        return $this->with;
+    }
+
+    /** @return array<int|string, string|Closure>|null */
+    public function actorEagerLoads(): ?array
+    {
+        return $this->actorWith;
+    }
+
+    /**
+     * Fold with()-style arguments into one relation list, read the way Eloquent's own with()
+     * reads them: a string is a relation name, an array is names or [name => constraint].
+     *
+     * @param  array<int|string, string|Closure>  $current
+     * @param  array<int, string|array<int|string, string|Closure>>  $relations
+     * @return array<int|string, string|Closure>
+     */
+    public static function mergeRelations(array $current, array $relations): array
+    {
+        foreach ($relations as $relation) {
+            foreach ((array) $relation as $name => $constraint) {
+                if (is_int($name)) {
+                    $current[] = $constraint;
+                } else {
+                    $current[$name] = $constraint;
+                }
+            }
+        }
+
+        return $current;
     }
 
     /**
