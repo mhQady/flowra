@@ -4,6 +4,7 @@ namespace Flowra;
 
 use Composer\InstalledVersions;
 use Illuminate\Foundation\Console\AboutCommand;
+use Flowra\Support\RegistryViewResolver;
 use Illuminate\Support\ServiceProvider;
 
 class FlowraServiceProvider extends ServiceProvider
@@ -15,6 +16,11 @@ class FlowraServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Registry views are memoized per process and may hold closures, so they are
+        // rebuilt per application boot rather than cached — that keeps a changed config
+        // (or a fresh test application) from reading a previous one's definitions.
+        RegistryViewResolver::flush();
+
         if ($this->app->runningInConsole()) {
             $this->commands([
                 \Flowra\Console\MakeWorkflow::class,

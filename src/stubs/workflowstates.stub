@@ -8,7 +8,10 @@ enum {{ states_class }}: string
     case STEP_ONE_COMPLETED = 'step_one_completed';
 
 //    /**
-//     * Optionally describe grouped (nested) states for this workflow.
+//     * Optionally group the states of this workflow.
+//     *
+//     * A group is also a phase: the query scopes expand it into its states, and a
+//     * collapsed registry view shows it in place of the rows that landed inside it.
 //     *
 //     * @return array
 //     */

@@ -291,41 +291,39 @@ trait HasWorkflowScopes
         return null;
     }
 
+    /**
+     * Expand a state into the status values it should match.
+     *
+     * A group (or phase) key expands to every state inside it, plus itself — the key is a
+     * real state in the hierarchical shape, and harmless as a synthetic phase name that no
+     * row ever stores. Anything else means itself: asking for a member state must never
+     * widen to its whole group, and must never be rewritten into a group key that the
+     * status table does not contain.
+     *
+     * @return array<int, string>
+     */
     private function expandStateForWorkflow(?string $workflowClass, string|UnitEnum $state): array
     {
         $value = $this->stringifyState($state);
 
-        if (!$workflowClass || !method_exists($workflowClass, 'stateParentGroup')) {
-            if ($workflowClass && method_exists($workflowClass, 'stateGroupChildren')) {
-                return array_map(
-                    fn(array $child) => $child['value'] ?? $child['key'] ?? $value,
-                    $workflowClass::stateGroupChildren($state)
-                );
-            }
-
+        if (!$workflowClass || !method_exists($workflowClass, 'stateGroupChildren')) {
             return [$value];
         }
 
-        $parent = $workflowClass::stateParentGroup($state);
+        $children = $workflowClass::stateGroupChildren($state);
 
-        if ($parent) {
-            $parentState = $parent['state'] ?? [];
-
-            return [$parentState['value'] ?? $parentState['key'] ?? $value];
+        if ($children === []) {
+            return [$value];
         }
 
-        $children = method_exists($workflowClass, 'stateGroupChildren')
-            ? $workflowClass::stateGroupChildren($state)
-            : [];
+        $values = array_map(
+            fn(array $child) => $child['value'] ?? $child['key'] ?? $value,
+            $children
+        );
 
-        if (count($children) > 0) {
-            return array_map(
-                fn(array $child) => $child['value'] ?? $child['key'] ?? $value,
-                $children
-            );
-        }
+        $values[] = $value;
 
-        return [$value];
+        return $values;
     }
 
     private function stringifyState(string|UnitEnum $state): string

@@ -14,6 +14,7 @@ trait HasStateGroups
     private array $stateGroupParents = [];
     protected static array $cachedStateGroups = [];
     protected static array $cachedStateGroupParents = [];
+    protected static array $cachedStatePhases = [];
 
     protected static function bootHasStateGroups(): void
     {
@@ -67,6 +68,64 @@ trait HasStateGroups
         [$stateGroups] = static::cachedStateGroups();
 
         return $stateGroups[$parentKey] ?? null;
+    }
+
+    /**
+     * The phase map: every state value that belongs to a group, pointing at that group.
+     *
+     * This is what the registry read layer collapses on — a row is part of a phase when the
+     * state it landed in (`to`) belongs to that phase's group. A group's own key resolves to
+     * itself as well, so a real parent state that contains sub-states counts as being inside
+     * its own phase.
+     *
+     * Derived from the already-cached group maps, so it needs no WorkflowCache key of its own.
+     *
+     * @return array<string, array{key: string, label: ?string}>
+     */
+    public static function statePhases(): array
+    {
+        $workflow = static::class;
+
+        if (isset(static::$cachedStatePhases[$workflow])) {
+            return static::$cachedStatePhases[$workflow];
+        }
+
+        [$stateGroups] = static::cachedStateGroups();
+
+        $phases = [];
+
+        foreach ($stateGroups as $key => $group) {
+            $phase = [
+                'key' => (string) $key,
+                'label' => $group['label'] ?? null,
+            ];
+
+            $phases[(string) $key] = $phase;
+
+            foreach ($group['children'] ?? [] as $child) {
+                $childKey = (string) ($child['key'] ?? $child['value'] ?? '');
+
+                if ($childKey !== '') {
+                    $phases[$childKey] = $phase;
+                }
+            }
+        }
+
+        return static::$cachedStatePhases[$workflow] = $phases;
+    }
+
+    /**
+     * The phase a state belongs to, if any.
+     *
+     * @return array{key: string, label: ?string}|null
+     */
+    public static function phaseForState(UnitEnum|string|null $state): ?array
+    {
+        if ($state === null) {
+            return null;
+        }
+
+        return static::statePhases()[static::stateKey($state)] ?? null;
     }
 
     public static function isGroupedState(UnitEnum|string $state): bool
@@ -165,6 +224,7 @@ trait HasStateGroups
             $stateGroups[$stateMeta['key']] = [
                 'state' => $stateMeta,
                 'children' => $childrenMeta,
+                'label' => $group['label'] ?? null,
             ];
 
             foreach ($childrenMeta as $child) {
