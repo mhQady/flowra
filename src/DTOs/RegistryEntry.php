@@ -6,6 +6,7 @@ use Carbon\CarbonInterface;
 use Flowra\Enums\TransitionTypesEnum;
 use Flowra\Models\Registry;
 use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use JsonSerializable;
@@ -29,11 +30,17 @@ use UnitEnum;
  * row itself stored, so the audit truth survives the projection — unless the view *masked*
  * this target, in which case `redacted` is true and `recordedBy` is deliberately null. The
  * untouched trail is then only reachable through `registry()`.
+ *
+ * `relations` holds what a view's with() loaded: a leaf's row relations, and — on every entry —
+ * the actor relations resolved against `appliedBy` (Support\RegistryRelationLoader). `actor` is the
+ * model a view's withActor() resolved `appliedBy` to. Neither names an actor the entry does not
+ * render as.
  */
 final class RegistryEntry implements Arrayable, JsonSerializable
 {
     /**
      * @param  Collection<int, RegistryEntry>  $children
+     * @param  array<string, mixed>  $relations
      */
     public function __construct(
         public readonly string $key,
@@ -54,6 +61,9 @@ final class RegistryEntry implements Arrayable, JsonSerializable
         public readonly bool $redacted = false,
         private readonly ?string $phaseLabelKey = null,
         private readonly ?string $statesEnum = null,
+        public readonly array $relations = [],
+        public readonly ?Model $actor = null,
+        private readonly bool $actorResolved = false,
     ) {
     }
 
@@ -95,6 +105,65 @@ final class RegistryEntry implements Arrayable, JsonSerializable
             redacted: $actor->redacted,
             phaseLabelKey: $phaseLabel,
             statesEnum: $statesEnum,
+            relations: self::rowRelations($row, $actor),
+        );
+    }
+
+    /**
+     * The same entry with its rendered actor resolved — and, through $children, each child's.
+     * Support\RegistryActorLoader builds these for a read that asked for withActor().
+     *
+     * @param  Collection<int, RegistryEntry>|null  $children
+     */
+    public function withActor(?Model $actor, ?Collection $children = null): self
+    {
+        return new self(...array_merge(get_object_vars($this), [
+            'actor' => $actor,
+            'actorResolved' => true,
+            'children' => $children ?? $this->children,
+        ]));
+    }
+
+    /**
+     * The same entry carrying these relations beside the ones it holds — replacing any of the
+     * same name — and, through $children, each child's. Support\RegistryRelationLoader builds
+     * these for the actor relations a read asked for.
+     *
+     * @param  array<string, mixed>  $relations
+     * @param  Collection<int, RegistryEntry>|null  $children
+     */
+    public function withRelations(array $relations, ?Collection $children = null): self
+    {
+        return new self(...array_merge(get_object_vars($this), [
+            'relations' => array_merge($this->relations, $relations),
+            'children' => $children ?? $this->children,
+        ]));
+    }
+
+    /**
+     * The relations loaded on the row, less any that would name an actor the entry does not
+     * render as.
+     *
+     * An attributed entry — a mask's stand-in, a declared applier, the system user — shows someone
+     * other than the row's applied_by, so a relation keyed on that column (Registry::
+     * isActorRelation()) would carry the recorded actor into the entry after all. On a masked
+     * entry that is exactly the actor the mask hides. The builder never loads an actor relation a
+     * read asked for off the rows; this catches one the model loads on its own, through $with.
+     *
+     * @return array<string, mixed>
+     */
+    private static function rowRelations(Registry $row, RegistryActor $actor): array
+    {
+        $relations = $row->getRelations();
+
+        if ($relations === [] || ! $actor->attributed) {
+            return $relations;
+        }
+
+        return array_filter(
+            $relations,
+            static fn (int|string $name) => ! $row->isActorRelation((string) $name),
+            ARRAY_FILTER_USE_KEY
         );
     }
 
@@ -376,9 +445,8 @@ final class RegistryEntry implements Arrayable, JsonSerializable
             // The actor the entry renders as: the row's own, or a stand-in a view, mask or
             // the system user put there. On a phase, whoever closed the run by default.
             'applied_by' => $this->appliedBy,
-            // When it happened, ISO-8601. A leaf: the row's created_at. A phase: when the run
             // began — its first row's created_at, the same instant as phase.started_at.
-            'applied_at' => $this->startedAt?->toIso8601String(),
+            'applied_at' => $this->startedAt,
             // True when applied_by did not come off the rows: a declared applier, a mask, or
             // the system user standing in for an unsigned row.
             'attributed' => $this->attributed,
@@ -386,6 +454,21 @@ final class RegistryEntry implements Arrayable, JsonSerializable
             // told who. Always implies attributed.
             'redacted' => $this->redacted,
         ];
+
+        if ($this->actorResolved) {
+            // Only in a read with withActor(): the model applied_by resolved to, or null when it
+            // names no record — a stand-in key, or an actor since deleted.
+            $entry['actor'] = $this->actor?->toArray();
+        }
+
+        if ($this->relations !== []) {
+            // Only in a read with with(): relations by name, nested so a relation named like an
+            // entry key cannot overwrite it. Row relations on leaves; actor relations on every entry.
+            $entry['relations'] = array_map(
+                static fn (mixed $related) => $related instanceof Arrayable ? $related->toArray() : $related,
+                $this->relations
+            );
+        }
 
         if ($this->collapsed) {
             // Phase only: the leaves the phase stands for, each in this same shape.
@@ -427,8 +510,8 @@ final class RegistryEntry implements Arrayable, JsonSerializable
         return [
             'key' => $this->phase,
             'label' => (string) $this->phaseLabel(),
-            'started_at' => $spansThePhase ? $this->startedAt?->toIso8601String() : null,
-            'ended_at' => $spansThePhase ? $this->endedAt?->toIso8601String() : null,
+            'started_at' => $spansThePhase ? $this->startedAt : null,
+            'ended_at' => $spansThePhase ? $this->endedAt : null,
         ];
     }
 

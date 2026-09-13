@@ -553,6 +553,8 @@ A config view accepts these keys:
 | `applied_by` | an actor id, or `'first'` / `'last'` / `'sole'` | `->appliedBy(...)` |
 | `mask.phases` | `[phase => stand-in actor]` | `->maskPhase(...)` |
 | `mask.transitions` | `[transition => stand-in actor]` | `->maskTransition(...)` |
+| `with` | relations declared on the registry model, the actor one included | `->with(...)` |
+| `with_actor` | `true`, or the relations to load on the resolved actor | `->withActor(...)` |
 
 > **Config-declared views cannot hold closures.** `php artisan config:cache` refuses to serialize
 > them. Closure conditions and closure appliers belong on the workflow class, which is never
@@ -582,6 +584,8 @@ the view and can be overridden per read:
 | `when(...$conditions)` | Add conditions on top of the view's |
 | `appliedBy($actor)` | Override attribution; `null` hands the decision back to the rows |
 | `maskPhase(...)` / `maskTransition(...)` | Add masks on top of the view's |
+| `with(...$relations)` | Load relations declared on your registry model — the actor one included — on top of the view's ([loading relations](#loading-relations-and-actors)) |
+| `withActor(...$relations)` | Resolve the actor every entry renders as to a model, on top of the view's |
 | `oldest()` / `latest()` | Oldest first (default) or newest first |
 | `get()` / `first()` / `count()` / `paginate()` | Terminal calls |
 | `query()` | Escape hatch: the Eloquent builder with SQL scopes applied (PHP filters are **not**) |
@@ -622,6 +626,8 @@ foreach ($entries as $entry) {
     $entry->isRedacted();     // false — no mask claimed this entry
     $entry->isJump();         // false — true only for a jumpTo() row
     $entry->children;         // Collection<RegistryEntry> — the underlying rows, phases only
+    $entry->relations;        // ['files' => Collection, 'actor' => User] — with() only
+    $entry->actor;            // the model appliedBy resolved to — withActor() only
 }
 
 $entries->leaves();           // flatten collapsed entries back to the full trail
@@ -1007,8 +1013,71 @@ call. The published lang file keeps an `actors` bucket as a convenient place for
 
 // In your API resource:
 $key  = "flowra::flowra.actors.{$entry->appliedBy}";
-$name = trans()->has($key) ? __($key) : User::find($entry->appliedBy)?->name;
+$name = trans()->has($key) ? __($key) : $entry->actor?->name; // a read with withActor()
 ```
+
+### Loading relations and actors
+
+A view can load what its audience needs alongside the entries — the files attached to a row, the
+user an entry renders as — without a query per entry. Declare the relations on your own
+[registry model](#using-your-own-status--registry-models), then name them in `with()`:
+
+```php
+class Registry extends \Flowra\Models\Registry
+{
+    public function actor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'applied_by');
+    }
+
+    public function files(): HasMany
+    {
+        return $this->hasMany(Attachment::class, 'registry_id');
+    }
+}
+```
+
+```php
+RegistryView::make('applicant')
+    ->collapsed()
+    ->with('files', 'actor.roles')
+    ->maskPhase('under_review', 'review_committee');
+
+// Or per read, on top of the view's.
+$order->orderWorkflow->registryView()->with('files', 'actor')->paginate(15);
+
+$entry->relations['actor'];   // the User the entry renders as — on phases too
+$entry->relations['files'];   // Collection — leaves only
+```
+
+`with()` sorts each relation by what it reads on the registry side:
+
+| | Row relation | Actor relation |
+|---|---|---|
+| Which | anything not keyed on `applied_by` — `files`, `notes`, … | keyed on `applied_by`: a `BelongsTo` over it, a `HasOne` / `HasMany` / through relation with it as the local key, a `BelongsToMany` with it as the parent key |
+| Resolves against | the row | the actor the entry **renders as** — after masks, appliers and the system user |
+| Lands on | `$entry->relations`, **leaves only** — a phase has no row; its children carry them | `$entry->relations`, on **every** entry and child, phases included |
+| Queries | one per relation, whatever the shape or pagination | one per relation for the whole read |
+
+Both take Eloquent's `with()` syntax — names, `a.b` nesting, `[name => fn ($query) => ...]` — and
+constraints, nesting and `withDefault()` behave on an actor relation exactly as they do on a row.
+
+**Actor relations cannot un-mask.** An actor relation is never loaded off the rows, where it would
+name the actor the row *recorded*. A masked entry resolves it against its stand-in: the stand-in's
+own record for an id, the relation's empty value (`null`, an empty collection, or its
+`withDefault()`) for a key like `'review_committee'`. The actor a mask hides is never selected. A
+relation your model loads by itself through `$with` is withheld from every attributed entry for the
+same reason.
+
+`Registry::isActorRelation()` makes the call — override it for a relation that reads `applied_by`
+in a way its keys do not show. A `MorphTo` over `applied_by` throws: a stand-in has no morph type.
+
+**No actor relation on your model?** `withActor(...$relations)` resolves the same rendered actor
+against `models.actor` (else `auth.providers.users.model`) and puts it on `$entry->actor`, every
+entry and child, in one query. Its config key is `with_actor` (`true`, or relations).
+
+Both serialize through Eloquent's `toArray()`, so `$hidden` applies, but an API should still shape
+them through its own resource rather than send whole models.
 
 ### JSON payload
 
@@ -1063,6 +1132,8 @@ $name = trans()->has($key) ? __($key) : User::find($entry->appliedBy)?->name;
 | `applied_by` | The rendered actor — the only actor in the payload. `recordedBy` stays on the DTO and in `registry()`. |
 | `attributed` / `redacted` | Whether `applied_by` came from a declaration, the system user, or a mask rather than the row. `redacted` always implies `attributed`. |
 | `children` | Present only on a phase; a leaf omits the key rather than repeating an empty array down the tree. |
+| `actor` | Present only in a read with `withActor()`: the resolved model serialized, or `null`. |
+| `relations` | Present only in a read with `with()`: `{relation: serialized}`, nested so a relation cannot overwrite an entry key. Row relations on leaves; actor relations on every entry. |
 
 ### Views and caching
 
@@ -1104,6 +1175,7 @@ Generator stubs can be customized by publishing them (`--tag=flowra-stubs`) — 
 | `tables.registry` | `statuses_registry` | Append-only transition history table |
 | `models.status` | `Flowra\Models\Status::class` | Eloquent class used for status rows |
 | `models.registry` | `Flowra\Models\Registry::class` | Eloquent class used for registry rows |
+| `models.actor` | `null` | Model `withActor()` resolves entries to; `null` uses `auth.providers.users.model` |
 | `registry_views.default_view` | `default` | View used when `registryView()` is called with no name (env: `FLOWRA_REGISTRY_DEFAULT_VIEW`) |
 | `registry_views.system_user` | `null` | Actor a rendered entry falls back to when nothing else resolves one (env: `FLOWRA_REGISTRY_SYSTEM_USER`) |
 | `registry_views.views` | `[]` | Named registry views shared by every workflow — see [Declaring views](#declaring-views) |

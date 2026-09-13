@@ -52,10 +52,14 @@ return [
     | Eloquent classes Flowra uses for status/registry rows. Point these at
     | your own classes to add casts, relations, or behavior — they must
     | extend the respective Flowra\Models class.
+    |
+    | 'actor' is the model a registry view's withActor() resolves each entry's
+    | rendered actor to; null uses auth.providers.users.model.
     */
     'models' => [
         'status' => Flowra\Models\Status::class,
         'registry' => Flowra\Models\Registry::class,
+        'actor' => null,
     ],
 
     /*
@@ -76,6 +80,10 @@ return [
     |   'applied_by' => who the entries render as: an actor id, or one of the strategies
     |                   'first' / 'last' / 'sole' for picking one actor out of a collapsed
     |                   run. Overrides whatever the Phase itself declared.
+    |   'with'       => relations declared on the registry model, e.g. ['files', 'actor'];
+    |                   one keyed on applied_by resolves against each entry's rendered actor
+    |   'with_actor' => true to resolve each entry's rendered actor to a model, or the
+    |                   relations to load on it, e.g. ['roles']
     |
     | Views declared here apply to every workflow; a workflow's own static
     | registryViews() method may add to them and wins on name clashes. The built-in
@@ -120,6 +128,11 @@ return [
             //         'phases' => ['under_review' => 'review_committee'],
             //         'transitions' => ['reject' => 'review_committee'],
             //     ],
+            //     // Relations on your registry model — an actor relation (keyed on applied_by)
+            //     // included — and the rendered actor resolved to a model through
+            //     // models.actor: true, or the relations to load on it.
+            //     'with' => ['files', 'actor'],
+            //     'with_actor' => ['roles'],
             // ],
         ],
     ],
