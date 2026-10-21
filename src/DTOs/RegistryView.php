@@ -8,6 +8,7 @@ use Flowra\Contracts\RegistryFilterContract;
 use Flowra\Contracts\RegistryScopeContract;
 use Flowra\Enums\RegistryActorEnum;
 use Flowra\Enums\RegistryShapeEnum;
+use Flowra\Traits\Support\DeclaresPhaseDisplay;
 use InvalidArgumentException;
 use UnitEnum;
 
@@ -19,6 +20,8 @@ use UnitEnum;
  */
 final class RegistryView
 {
+    use DeclaresPhaseDisplay;
+
     /**
      * @var array<int, Closure|RegistryFilterContract|RegistryScopeContract|class-string>
      */
@@ -125,6 +128,8 @@ final class RegistryView
         foreach ((array) ($definition['conditions'] ?? []) as $condition) {
             $view->when($condition);
         }
+
+        $view->phaseDisplayFromConfig($definition['phase_display'] ?? null);
 
         return $view;
     }

@@ -29,6 +29,8 @@ $order->orderWorkflow->registryView('customer')->for($user)->get();
 - [Applying Transitions](#applying-transitions) — inspecting, state jumps, bulk transitions
 - [Querying Models by State](#querying-models-by-state)
 - [Registry Views](#registry-views) — phases, conditions, attribution, masking, labels, JSON
+- [Status Views](#status-views) — what each audience is shown as the current status
+- [Phase Display](#phase-display) — show a phase, a state, or both, in status and registry views
 - [Artisan Commands](#artisan-commands)
 - [Configuration](#configuration)
 - [Database Schema](#database-schema)
@@ -53,6 +55,8 @@ $order->orderWorkflow->registryView('customer')->for($user)->get();
   - hide rows from an audience with SQL scopes or PHP filters;
   - attribute entries to a team or service account, or **mask** who acted;
   - translated labels and a JSON-ready payload, with pagination.
+- **Status views** — read-only, per-audience projections of the *current* status: show a phase,
+  a synthetic step or nothing at all in place of the real state, per viewer.
 - Artisan generators for workflows, guards, and actions.
 - Export workflow definitions to Mermaid or PlantUML diagrams.
 - Optional persistent caching of parsed workflow definitions.
@@ -1142,6 +1146,245 @@ pushed through `Support\WorkflowCache`: they can hold closures and bound objects
 them would fail on every request. The phase map costs nothing extra — it is derived from the
 already-cached phases.
 
+## Status Views
+
+Registry views decide what **history** each audience sees. Status views decide what **current
+status** each audience sees: the same model can be "Under Processing" to its owner, "Under
+Auditing" to the back office, and "In Progress" to a party that must not know which internal step
+it is at.
+
+```php
+$order->orderWorkflow->currentState;                            // the real state — unchanged
+$order->orderWorkflow->statusView()->get();                     // default view — the real status
+$order->orderWorkflow->statusView('owner')->for($user)->get();  // what this viewer is shown
+```
+
+A status view is a **read-only presentation layer**. `currentState`, `currentStatus`, `status()`,
+the query scopes and every transition keep using the real state. Nothing is written.
+
+### Declaring status views
+
+Declare views on the workflow class with a static `statusViews()` method. A view is an ordered list
+of rules. Each rule claims some real states and says what to show in their place:
+
+```php
+use Flowra\DTOs\StatusRule;
+use Flowra\DTOs\StatusView;
+use Flowra\Models\Status;
+
+class OrderWorkflow extends BaseWorkflow
+{
+    public static function statusViews(): array
+    {
+        return [
+            StatusView::make('owner')
+                ->labels('workflow.order')                      // look labels up here first
+                ->show('fulfilment')->as('fulfilment')          // a phase key claims every child
+                ->hide(S::FRAUD_CHECK)->as('processing')        // shown as 'processing', and redacted
+                    ->when(fn (Status $status, $order, $viewer) => ! $viewer?->isStaff()),
+
+            StatusView::make('courier')
+                ->rule(StatusRule::any()->as('ready_for_pickup')->when(IsCourier::class)),
+        ];
+    }
+}
+```
+
+| Method | Meaning |
+|---|---|
+| `show(...$states)` | starts a rule claiming these states (by case, value or **phase key**) |
+| `hide(...$states)` | same, but **redacts**: the real state, comment and actor are dropped from the entry itself. Needs `as()`. |
+| `rule(StatusRule ...)` | appends ready-made rules (`StatusRule::show()`, `::hide()`, `::any()`) |
+| `as($key)` | what the rule added last shows: a state, a phase key, or a synthetic key like `in_progress` |
+| `label($key)` | label for the rule added last: a translation key or a literal |
+| `when(...$conditions)` | conditions for the rule added last; all must pass |
+| `keepDetails()` | keeps the comment and actor on the rule added last (see [Redaction](#redaction-in-status-views)) |
+| `using(...$resolvers)` | resolvers that compute the displayed key outright, before any rule |
+| `labels($prefix)` | translation prefix for the displayed key, e.g. `'workflow.order'` |
+| `fallback($key)` | key shown while the model has no status yet; none by default |
+| `with(...$relations)` | relations on your status model, in Eloquent's `with()` syntax, landing on `$entry->relations`. Loaded **only on a status that keeps its details** (the real status, or a rule with `keepDetails()`), so a remapped or hidden status never carries the hidden step's relations. Uses `loadMissing()`: a list that eager-loads `orderWorkflowStatus.appliedBy` costs no extra query. |
+
+**How a phase name matches.** A name that is a phase key claims every state inside the phase,
+including a phase keyed by a real state that is also one of its children. Any other name claims
+only that state.
+
+**Which rule wins.** Resolvers run first, and the first that returns a key wins. Then rules run in
+order: per-read rules before the view's own. The first rule that claims the real state, with every
+condition passing, wins. If none matches, the real status is shown unchanged.
+
+**Conditions and resolvers** accept a closure, an instance, or a container-resolved class-string:
+
+```php
+use Flowra\Contracts\StatusConditionContract;   // allows(Status $status, $owner, $viewer = null): bool
+use Flowra\Contracts\StatusResolverContract;    // resolve(Status $status, $owner, $viewer = null): UnitEnum|string|null
+```
+
+`$viewer` is whatever you passed to `for()`. It may be null (queue/CLI), and flowra never reads
+`auth()` itself.
+
+Unlike registry views, `when()` belongs to a **rule**, not to the view. A status is one row, and
+filtering it out would leave nothing to show. Conditions decide which rule applies, not whether a
+status exists.
+
+Or declare views for **every** workflow in `config/flowra.php`. Conditions and resolvers declared
+there must be class-strings, because `config:cache` cannot serialize closures:
+
+```php
+'status_views' => [
+    'default_view' => 'default',
+    'views' => [
+        'owner' => [
+            'labels' => 'workflow.order',
+            'rules' => [
+                ['show' => ['fulfilment'], 'as' => 'fulfilment'],
+                ['hide' => ['fraud_check'], 'as' => 'processing', 'conditions' => [IsApplicant::class]],
+            ],
+        ],
+    ],
+],
+```
+
+Views resolve exactly like registry views: the built-in `default` (no rules), then config, then
+the workflow's `statusViews()`, where the later source wins on a name clash. An unknown name throws
+`Flowra\Exceptions\StatusViewNotFoundException`.
+
+### Reading a status view
+
+`statusView()` returns a `Flowra\Support\StatusViewBuilder`. `for()`, `show()`, `hide()`, `rule()`,
+`as()`, `label()`, `when()`, `keepDetails()`, `using()`, `labels()` and `fallback()` can all be
+called per read. Per-read rules are checked before the view's own.
+
+`get()` returns a `Flowra\DTOs\StatusEntry`, or null when the model has no status and the view has
+no fallback. The builder reads the status the workflow already loaded, so **a status view costs no
+query of its own**.
+
+```php
+$entry = $order->orderWorkflow->statusView('owner')->for($user)->get();
+
+$entry->key;            // 'processing'   — what this viewer is shown
+$entry->label();        // "Processing"
+$entry->state;          // the displayed key as a state, null for a synthetic key
+$entry->phase;          // the phase the displayed key sits in (or is), else null
+$entry->phaseLabel();
+$entry->appliedAt;      // when the model reached its current status
+$entry->isRemapped();   // true — a rule or resolver changed what is shown
+$entry->isRedacted();   // true — a hide rule claimed it
+$entry->recordedState;  // the real state for server code; null once redacted
+```
+
+`toArray()` / JSON:
+
+```json
+{
+  "key": "processing",
+  "label": "Processing",
+  "state": null,
+  "phase": null,
+  "applied_at": "2026-10-21T09:00:00.000000Z",
+  "applied_by": null,
+  "comment": [],
+  "remapped": true,
+  "redacted": true
+}
+```
+
+### Redaction in status views
+
+- `recordedState` is **never serialized**. A client of a remapped status cannot read the real one
+  back. Server code that needs the truth reads `currentState`.
+- A remapped status carries **no comment and no actor** by default, because a comment written at an
+  internal step tends to describe that step. `keepDetails()` opts a rule back in.
+- A hidden status also drops `recordedState` from the DTO, so a logged or dumped entry does not leak
+  it either. `keepDetails()` cannot lift that.
+
+### Status view labels
+
+| Order | Source |
+|---|---|
+| 1 | the matching rule's `label()`, used as a translation key and falling back to itself as a literal |
+| 2 | `{labels prefix}.{key}`, when the view declared `labels()` and the key is translated |
+| 3 | for a synthetic phase key: the `Phase->label()`, then `flowra::flowra.phases.{key}` |
+| 4 | `flowra::flowra.states.{key}`, then a humanized key |
+
+Steps 3–4 are the same lookups registry entries use, so a step has one name in both places.
+
+### Carrying the real sub-state
+
+A view that shows several states as one phase can still tell the viewer *where inside* the phase
+the model is:
+
+```php
+StatusView::make('owner')
+    ->show(S::PREPARE_APPLICATION_INFO)->as(S::PREPARE_APPLICATION_INFO)
+    ->withSubState(S::PREPARE_APPLICATION_INFO);   // these phases; no args = every phase
+
+$entry->key;              // 'prepare_application_info'
+$entry->subState;         // 'certificates_info_entered'
+$entry->subStateLabel();  // its label, via the view's labels() prefix like label()
+```
+
+`toArray()` adds `sub_state: {key, label}|null`, but only in a view or read that asked for it
+(config: `'sub_state' => true` or a list of phases; per read: `->withSubState()`).
+
+`subState` is filled only when all of these hold:
+- the status is shown **as** the phase, through a rule or `phaseOnly()`;
+- the real state sits **inside that same phase**;
+- the entry is **not hidden**.
+
+A rule that maps an unrelated state onto the phase therefore never reveals that state, and
+`hide()` always wins.
+
+## Phase Display
+
+When a status, or a registry row, sits inside a [phase](#phases), a view can choose how it is
+presented. This works the same for status views and registry views:
+
+| Mode (`Flowra\Enums\PhaseDisplayEnum`) | Config value | `key` / `label()` | `state` (status) | Extra in `toArray()` |
+|---|---|---|---|---|
+| `STATE_ONLY`: **default** | `state` | the state's | filled | none, output exactly as before |
+| `PHASE_ONLY` | `phase` | the phase's | `null` | `display`, `display_label` |
+| `WITH_PHASE` | `with_phase` | the state's | filled | `display`, `display_label` = "Under Review › Scored" |
+
+```php
+use Flowra\Enums\PhaseDisplayEnum as D;
+
+Phase::make('under_review')->display(D::WITH_PHASE)->children(...); // default for every view
+
+StatusView::make('surveyor')->phaseOnly();                          // every phase
+RegistryView::make('external')->withPhase('under_review');          // one phase (or any state in it)
+
+$wf->statusView('surveyor')->stateOnly()->get();                    // per read
+$wf->registryView('external')->phaseDisplay(D::PHASE_ONLY, S::AUDITING)->get();
+```
+
+`phaseOnly()`, `withPhase()` and `stateOnly()` are shortcuts for `phaseDisplay(mode, ...$phases)`.
+With no phases named, the mode applies to every phase.
+
+**Precedence**, from lowest to highest:
+1. `Phase::display()`
+2. the view, for every phase
+3. the view, for one phase
+4. the read, for every phase
+5. the read, for one phase
+
+In config, `'phase_display' => 'phase'` or `['*' => 'with_phase', 'under_review' => 'phase']`
+goes on any registry or status view.
+
+**What each mode does:**
+- An entry outside any phase, a jump included, is always presented as `STATE_ONLY`.
+- **Status views** apply the mode after the rules. `PHASE_ONLY` replaces the key with the phase and
+  nulls `state`, so the child never travels. If that changes the key, the entry counts as remapped
+  and drops its comment and actor, unless the matching rule says `keepDetails()`.
+- **Registry views** apply the mode to every entry and every child, in both shapes and in SQL
+  pagination. A `PHASE_ONLY` leaf is re-keyed and labelled by its phase, but its `from`/`to` keep
+  the row's real states, because a registry view is not a state-privacy layer. Use a
+  [condition](#filtering-rows-per-audience) to hide states. A collapsed entry already is its phase,
+  so `WITH_PHASE` only adds a `display_label`, made from the phase and the state its run ended at.
+- The combined label comes from the `flowra::flowra.with_phase` pattern (`':phase › :state'`). A
+  locale can reorder it or change the separator.
+- `Phase::display()` is part of the cached workflow definition. With `cache_workflows` on, refresh
+  that cache after declaring it.
+
 ## Artisan Commands
 
 | Command | Description |
@@ -1179,6 +1422,8 @@ Generator stubs can be customized by publishing them (`--tag=flowra-stubs`) — 
 | `registry_views.default_view` | `default` | View used when `registryView()` is called with no name (env: `FLOWRA_REGISTRY_DEFAULT_VIEW`) |
 | `registry_views.system_user` | `null` | Actor a rendered entry falls back to when nothing else resolves one (env: `FLOWRA_REGISTRY_SYSTEM_USER`) |
 | `registry_views.views` | `[]` | Named registry views shared by every workflow — see [Declaring views](#declaring-views) |
+| `status_views.default_view` | `default` | View used when `statusView()` is called with no name (env: `FLOWRA_STATUS_DEFAULT_VIEW`) |
+| `status_views.views` | `[]` | Named status views shared by every workflow — see [Status Views](#status-views) |
 
 ### Using your own Status / Registry models
 

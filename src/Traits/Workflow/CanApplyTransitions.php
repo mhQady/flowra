@@ -58,7 +58,7 @@ trait CanApplyTransitions
      */
     private function save(Transition $t): ?Status
     {
-        return DB::transaction(function () use ($t): Status {
+        $status = DB::transaction(function () use ($t): Status {
 
             $status = $this->saveStatus($t);
 
@@ -66,6 +66,11 @@ trait CanApplyTransitions
 
             return $status;
         });
+
+        // apply() and jumpTo() both land here, so an eager-loaded status relation never goes stale.
+        $this->syncLoadedStatus($status);
+
+        return $status;
 
     }
 

@@ -13,6 +13,7 @@ use Flowra\DTOs\RegistryView;
 use Flowra\Enums\RegistryActorEnum;
 use Flowra\Enums\RegistryShapeEnum;
 use Flowra\Models\Registry;
+use Flowra\Traits\Support\DeclaresPhaseDisplay;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -35,6 +36,8 @@ use UnitEnum;
  */
 final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, JsonSerializable
 {
+    use DeclaresPhaseDisplay;
+
     private RegistryShapeEnum $shape;
 
     /** Phases this read collapses; null means every phase. @var array<int, string>|null */
@@ -422,6 +425,8 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
      */
     private function hydrate(Collection $entries): Collection
     {
+        $entries = $this->presentPhases($entries);
+
         $actorRelations = $this->relations()['actors'];
 
         if ($actorRelations !== []) {
@@ -433,6 +438,38 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
         }
 
         return RegistryActorLoader::make($this->actorWith)->load($entries);
+    }
+
+    /**
+     * Apply the phase display mode to every entry and child. A read where nothing declares a
+     * mode returns the entries untouched — STATE_ONLY output is exactly what it was.
+     *
+     * @template TEntries of Collection<int, RegistryEntry>
+     *
+     * @param  TEntries  $entries
+     * @return TEntries
+     */
+    private function presentPhases(Collection $entries): Collection
+    {
+        $resolver = new PhaseDisplayResolver(
+            $this->phases(),
+            $this->view->phaseDisplayWide(),
+            $this->view->phaseDisplayPhases(),
+            $this->phaseDisplayWide(),
+            $this->phaseDisplayPhases(),
+        );
+
+        if ($resolver->isInert()) {
+            return $entries;
+        }
+
+        $present = static function (RegistryEntry $entry) use (&$present, $resolver): RegistryEntry {
+            $children = $entry->children->isEmpty() ? null : $entry->children->map($present);
+
+            return $entry->withDisplay($resolver->for($entry->phase), $children);
+        };
+
+        return $entries->map($present);
     }
 
     /**
