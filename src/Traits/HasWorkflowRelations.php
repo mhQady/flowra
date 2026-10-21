@@ -32,6 +32,18 @@ trait HasWorkflowRelations
             static::resolveRelationUsing($alias.'Registry', function (Model $model) use ($class) {
                 return $model->morphMany(WorkflowModels::registry(), 'owner')->where('workflow', $class);
             });
+
+            // The read views, registered the same way so they sit beside the relations above:
+            // $order->orderWorkflowRegistryView()->view('customer')->latest()->get(). Eloquent hands a
+            // resolver only the model, so each starts from the default view and view() switches.
+            // They are reads, not relations: call them as methods, never with() or as a property.
+            static::resolveRelationUsing($alias.'RegistryView', function (Model $model) use ($alias) {
+                return $model->{$alias}->registryView();
+            });
+
+            static::resolveRelationUsing($alias.'StatusView', function (Model $model) use ($alias) {
+                return $model->{$alias}->statusView();
+            });
         }
     }
 

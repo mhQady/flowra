@@ -133,6 +133,67 @@ return [
             //     // models.actor: true, or the relations to load on it.
             //     'with' => ['files', 'actor'],
             //     'with_actor' => ['roles'],
+            //     // How a row inside a phase is presented: 'state' (default), 'phase' (the
+            //     // phase in place of the state) or 'with_phase' (both, as display_label).
+            //     // A string for every phase, or ['*' => mode, 'under_review' => mode].
+            //     'phase_display' => 'with_phase',
+            // ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Status Views
+    |--------------------------------------------------------------------------
+    | Named, read-only projections of the CURRENT status — what one audience is shown
+    | when it asks which status a model is in. Nothing here changes currentState,
+    | currentStatus, status(), the query scopes or any transition.
+    |
+    | A view is an ordered list of rules; the first that claims the real state (with
+    | every condition passing) decides what is shown, else the real status is:
+    |
+    |   'labels'    => translation prefix the displayed key is looked up under first,
+    |                  e.g. 'workflow.refarz' for 'workflow.refarz.under_processing'
+    |   'fallback'  => key shown while the model has no status yet (omit for none)
+    |   'resolvers' => class-strings of StatusResolverContract, run before the rules
+    |   'rules'     => [
+    |       ['show' => [states or phase keys], 'as' => 'shown_key',
+    |        'label' => 'lang.key', 'conditions' => [StatusConditionContract::class],
+    |        'keep_details' => true],
+    |       ['hide' => [...], 'as' => 'in_progress'],   // also redacts the real state
+    |       ['any' => true, 'as' => 'submitted'],       // claims every state
+    |   ]
+    |   'phase_display' => 'state' (default) | 'phase' | 'with_phase', or
+    |                  ['*' => mode, 'under_review' => mode] — how a status inside a
+    |                  phase is presented, applied after the rules
+    |   'sub_state' => true | ['prepare_application_info'] — when the status is shown
+    |                  as one of these phases, carry the real state inside it too
+    |   'with'      => relations on your status model, loaded only on a status that
+    |                  keeps its details (real, or a rule with keep_details)
+    |
+    | A phase key claims every state inside the phase. A remapped status carries no
+    | comment or actor unless the rule says 'keep_details'; a hidden one never does.
+    |
+    | Views declared here apply to every workflow; a workflow's static statusViews()
+    | wins on name clashes. The built-in 'default' view has no rules. Unknown names
+    | throw StatusViewNotFoundException. Conditions and resolvers declared HERE must be
+    | class-strings: `php artisan config:cache` refuses to serialize closures.
+    */
+    'status_views' => [
+
+        // View used when statusView() is called with no name.
+        'default_view' => env('FLOWRA_STATUS_DEFAULT_VIEW', 'default'),
+
+        'views' => [
+            // 'owner' => [
+            //     'labels' => 'workflow.refarz',
+            //     // Send applied_by, comment and with() relations on the real status (off by default).
+            //     'keep_details' => true,
+            //     'rules' => [
+            //         ['show' => ['under_processing'], 'as' => 'under_processing'],
+            //         ['hide' => ['internal_review'], 'as' => 'in_progress',
+            //          'conditions' => [App\Workflows\StatusViews\IsApplicant::class]],
+            //     ],
             // ],
         ],
     ],

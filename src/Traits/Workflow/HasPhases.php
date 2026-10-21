@@ -88,7 +88,7 @@ trait HasPhases
      *
      * Derived from the already-cached phases, so it needs no WorkflowCache key of its own.
      *
-     * @return array<string, array{key: string, label: ?string}>
+     * @return array<string, array{key: string, label: ?string, display: ?string}>
      */
     public static function statePhases(): array
     {
@@ -106,6 +106,8 @@ trait HasPhases
             $phase = [
                 'key' => (string) $key,
                 'label' => $definition['label'] ?? null,
+                // Read with a fallback: a definition cache written before phase display has no key.
+                'display' => $definition['display'] ?? null,
             ];
 
             $map[(string) $key] = $phase;
@@ -239,6 +241,7 @@ trait HasPhases
                 'state' => $stateMeta,
                 'children' => $childrenMeta,
                 'label' => $phase['label'] ?? null,
+                'display' => $phase['display'] ?? null,
             ];
 
             foreach ($childrenMeta as $child) {

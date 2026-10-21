@@ -3,8 +3,10 @@
 namespace Flowra\DTOs;
 
 use Carbon\CarbonInterface;
+use Flowra\Enums\PhaseDisplayEnum;
 use Flowra\Enums\TransitionTypesEnum;
 use Flowra\Models\Registry;
+use Flowra\Support\Labels;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -64,7 +66,56 @@ final class RegistryEntry implements Arrayable, JsonSerializable
         public readonly array $relations = [],
         public readonly ?Model $actor = null,
         private readonly bool $actorResolved = false,
+        private readonly PhaseDisplayEnum $display = PhaseDisplayEnum::STATE_ONLY,
     ) {
+    }
+
+    /**
+     * The same entry presented in this phase display mode — and, through $children, each child
+     * in its own. RegistryBuilder builds these for a read whose view or read declared a mode.
+     *
+     * An entry in no phase (a jump included) is left as it is: there is no phase to show.
+     * PHASE_ONLY re-keys a leaf by its phase; a collapsed entry already is the phase. `from`
+     * and `to` keep the row's real states either way — hiding states is a condition's job.
+     *
+     * @param  Collection<int, RegistryEntry>|null  $children
+     */
+    public function withDisplay(PhaseDisplayEnum $display, ?Collection $children = null): self
+    {
+        $children ??= $this->children;
+
+        if ($this->phase === null) {
+            return $children === $this->children ? $this : new self(...array_merge(get_object_vars($this), [
+                'children' => $children,
+            ]));
+        }
+
+        return new self(...array_merge(get_object_vars($this), [
+            'key' => $display === PhaseDisplayEnum::PHASE_ONLY ? $this->phase : $this->key,
+            'children' => $children,
+            'display' => $display,
+        ]));
+    }
+
+    public function display(): PhaseDisplayEnum
+    {
+        return $this->display;
+    }
+
+    /**
+     * The label to put in front of a viewer: label(), or — under WITH_PHASE — the phase and the
+     * state together (for a collapsed entry, the state its run ended at), from the
+     * flowra::flowra.with_phase pattern.
+     */
+    public function displayLabel(): string
+    {
+        if ($this->display !== PhaseDisplayEnum::WITH_PHASE || $this->phase === null) {
+            return $this->label();
+        }
+
+        $state = $this->collapsed ? $this->toLabel() : $this->label();
+
+        return $state === null ? $this->label() : Labels::combined((string) $this->phaseLabel(), $state);
     }
 
     /**
@@ -240,7 +291,8 @@ final class RegistryEntry implements Arrayable, JsonSerializable
      */
     public function label(): string
     {
-        if ($this->collapsed) {
+        // A phase-only leaf is presented as its phase, exactly like a collapsed entry.
+        if ($this->collapsed || ($this->display === PhaseDisplayEnum::PHASE_ONLY && $this->phase !== null)) {
             return $this->phaseLabel() ?? Str::headline($this->key);
         }
 
@@ -286,14 +338,7 @@ final class RegistryEntry implements Arrayable, JsonSerializable
             return null;
         }
 
-        if ($this->phaseLabelKey !== null) {
-            $translated = __($this->phaseLabelKey);
-
-            return is_string($translated) ? $translated : $this->phaseLabelKey;
-        }
-
-        return $this->translate("flowra::flowra.phases.{$this->phase}")
-            ?? Str::headline($this->phase);
+        return Labels::phase($this->phase, $this->phaseLabelKey);
     }
 
     /**
@@ -455,6 +500,12 @@ final class RegistryEntry implements Arrayable, JsonSerializable
             'redacted' => $this->redacted,
         ];
 
+        if ($this->display !== PhaseDisplayEnum::STATE_ONLY) {
+            // Only under a phase display mode, so STATE_ONLY output is unchanged.
+            $entry['display'] = $this->display->value;
+            $entry['display_label'] = $this->displayLabel();
+        }
+
         if ($this->actorResolved) {
             // Only in a read with withActor(): the model applied_by resolved to, or null when it
             // names no record — a stand-in key, or an actor since deleted.
@@ -537,11 +588,7 @@ final class RegistryEntry implements Arrayable, JsonSerializable
      */
     private function stateLabel(?string $value): ?string
     {
-        if ($value === null) {
-            return null;
-        }
-
-        return $this->translate("flowra::flowra.states.{$value}") ?? Str::headline($value);
+        return Labels::state($value);
     }
 
     /**
@@ -550,9 +597,7 @@ final class RegistryEntry implements Arrayable, JsonSerializable
      */
     private function translate(string $key): ?string
     {
-        $translated = __($key);
-
-        return is_string($translated) && $translated !== $key ? $translated : null;
+        return Labels::translate($key);
     }
 
     private function resolveState(?string $value): ?UnitEnum

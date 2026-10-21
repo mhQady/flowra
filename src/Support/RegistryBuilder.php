@@ -13,6 +13,7 @@ use Flowra\DTOs\RegistryView;
 use Flowra\Enums\RegistryActorEnum;
 use Flowra\Enums\RegistryShapeEnum;
 use Flowra\Models\Registry;
+use Flowra\Traits\Support\DeclaresPhaseDisplay;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -20,6 +21,7 @@ use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 use IteratorAggregate;
 use JsonSerializable;
+use LogicException;
 use Traversable;
 use UnitEnum;
 
@@ -35,6 +37,8 @@ use UnitEnum;
  */
 final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, JsonSerializable
 {
+    use DeclaresPhaseDisplay;
+
     private RegistryShapeEnum $shape;
 
     /** Phases this read collapses; null means every phase. @var array<int, string>|null */
@@ -73,6 +77,9 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
     /** @var array{scopes: array<int, RegistryScopeContract>, filters: array<int, Closure|RegistryFilterContract>}|null */
     private ?array $partitioned = null;
 
+    /** The per-read options as the view seeded them; see view(). @var array<string, mixed> */
+    private array $seeded = [];
+
     public function __construct(
         private readonly BaseWorkflow $workflow,
         private readonly RegistryView $view,
@@ -86,6 +93,39 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
         $this->maskedTransitions = $view->maskedTransitions();
         $this->with = $view->eagerLoads();
         $this->actorWith = $view->actorEagerLoads();
+        $this->seeded = $this->readState();
+    }
+
+    /**
+     * Read through another named view instead — the switch for a read that starts from the
+     * default view, such as `$order->orderWorkflowRegistryView()->view('customer')`.
+     *
+     * Returns a fresh read seeded from that view; the viewer given to for() carries over. Call it
+     * before any other per-read option: those would belong to the view being left, so changing one
+     * first throws rather than being silently dropped.
+     *
+     * @throws \Flowra\Exceptions\RegistryViewNotFoundException on an unknown view name.
+     */
+    public function view(string $name): self
+    {
+        if ($this->readState() != $this->seeded) {
+            throw new LogicException('Call view() before any other per-read option of the registry view; for() is the only one it carries over.');
+        }
+
+        return $this->workflow->registryView($name)->for($this->viewer);
+    }
+
+    /**
+     * The per-read options, to tell whether any changed since the view seeded them — caches and
+     * the viewer left out.
+     *
+     * @return array<string, mixed>
+     */
+    private function readState(): array
+    {
+        return array_diff_key(get_object_vars($this), array_flip([
+            'viewer', 'seeded', 'workflow', 'view', 'attribution', 'partitioned', 'relationSplit',
+        ]));
     }
 
     public function detailed(): self
@@ -422,6 +462,8 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
      */
     private function hydrate(Collection $entries): Collection
     {
+        $entries = $this->presentPhases($entries);
+
         $actorRelations = $this->relations()['actors'];
 
         if ($actorRelations !== []) {
@@ -433,6 +475,38 @@ final class RegistryBuilder implements Arrayable, Countable, IteratorAggregate, 
         }
 
         return RegistryActorLoader::make($this->actorWith)->load($entries);
+    }
+
+    /**
+     * Apply the phase display mode to every entry and child. A read where nothing declares a
+     * mode returns the entries untouched — STATE_ONLY output is exactly what it was.
+     *
+     * @template TEntries of Collection<int, RegistryEntry>
+     *
+     * @param  TEntries  $entries
+     * @return TEntries
+     */
+    private function presentPhases(Collection $entries): Collection
+    {
+        $resolver = new PhaseDisplayResolver(
+            $this->phases(),
+            $this->view->phaseDisplayWide(),
+            $this->view->phaseDisplayPhases(),
+            $this->phaseDisplayWide(),
+            $this->phaseDisplayPhases(),
+        );
+
+        if ($resolver->isInert()) {
+            return $entries;
+        }
+
+        $present = static function (RegistryEntry $entry) use (&$present, $resolver): RegistryEntry {
+            $children = $entry->children->isEmpty() ? null : $entry->children->map($present);
+
+            return $entry->withDisplay($resolver->for($entry->phase), $children);
+        };
+
+        return $entries->map($present);
     }
 
     /**

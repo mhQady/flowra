@@ -2,6 +2,7 @@
 
 namespace Flowra\DTOs;
 
+use Flowra\Enums\PhaseDisplayEnum;
 use UnitEnum;
 
 /**
@@ -35,6 +36,9 @@ final class Phase
 
     /** Optional translation key (or literal label) for a collapsed entry of this phase. */
     private ?string $label = null;
+
+    /** Default presentation of a state inside this phase; null leaves it to the views. */
+    private ?PhaseDisplayEnum $display = null;
 
     private function __construct(UnitEnum|string $state)
     {
@@ -73,12 +77,25 @@ final class Phase
         return $this;
     }
 
+    /**
+     * How a state inside this phase is presented in every status and registry view that does
+     * not decide for itself — the lowest rung of the phase-display precedence. See
+     * PhaseDisplayEnum.
+     */
+    public function display(PhaseDisplayEnum|string $mode): self
+    {
+        $this->display = PhaseDisplayEnum::resolve($mode);
+
+        return $this;
+    }
+
     public function toArray(): array
     {
         return [
             'state' => $this->state,
             'children' => $this->children,
             'label' => $this->label,
+            'display' => $this->display?->value,
         ];
     }
 }

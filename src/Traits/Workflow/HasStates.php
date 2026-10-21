@@ -4,6 +4,7 @@ namespace Flowra\Traits\Workflow;
 
 use Flowra\Models\Status;
 use Flowra\Support\WorkflowCache;
+use Illuminate\Support\Str;
 use RuntimeException;
 use UnitEnum;
 
@@ -53,11 +54,41 @@ trait HasStates
     protected function hydrateStates(?Status $status = null): void
     {
         if (is_null($status)) {
-            $status = $this->status();
+            $status = $this->statusRelationLoaded()
+                ? $this->model->getRelation($this->statusRelationName())
+                : $this->status();
         }
 
         $this->currentStatus = $status;
         $this->currentState = $this->statesEnum::tryFrom($status?->to);
+    }
+
+    /**
+     * Whether the caller already eager-loaded the model's `{alias}Status` relation — then a list
+     * that loads `with('orderWorkflowStatus')` builds each row's workflow without a query of its
+     * own, a row with no status yet included (the relation is loaded as null).
+     */
+    private function statusRelationLoaded(): bool
+    {
+        return method_exists($this->model, 'relationLoaded')
+            && $this->model->relationLoaded($this->statusRelationName());
+    }
+
+    /**
+     * Keep an eager-loaded `{alias}Status` relation in step with a status this workflow just
+     * wrote, so a workflow built later from the same model never reads a stale row.
+     */
+    protected function syncLoadedStatus(?Status $status): void
+    {
+        if ($status !== null && $this->statusRelationLoaded()) {
+            $this->model->setRelation($this->statusRelationName(), $status);
+        }
+    }
+
+    /** The relation HasWorkflowRelations registers for this workflow, e.g. 'orderWorkflowStatus'. */
+    private function statusRelationName(): string
+    {
+        return Str::camel(class_basename(static::class)).'Status';
     }
 
 //    public function currentStatePhase(): ?array
