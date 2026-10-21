@@ -11,7 +11,7 @@ use RuntimeException;
  * RegistryViewResolver, with the same sources and the same memoization rules.
  *
  * Sources, in increasing precedence:
- *   1. the built-in `default` view (no rules — the real status);
+ *   1. the built-in `default` view (no rules — the real status, with its details);
  *   2. config('flowra.status_views.views'), shared by every workflow;
  *   3. the workflow's own static statusViews(), which wins on name clashes.
  *
@@ -82,7 +82,9 @@ final class StatusViewResolver
      */
     private static function compile(string $workflow): array
     {
-        $views = [self::DEFAULT_VIEW => StatusView::make(self::DEFAULT_VIEW)];
+        // The raw status, as status() reads it: details included. A config or workflow view
+        // replacing `default` opts in (or not) like any other view.
+        $views = [self::DEFAULT_VIEW => StatusView::make(self::DEFAULT_VIEW)->withDetails()];
 
         foreach ((array) config('flowra.status_views.views', []) as $name => $definition) {
             if (! is_string($name) || $name === '') {

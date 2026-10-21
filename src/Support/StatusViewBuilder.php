@@ -29,6 +29,8 @@ use UnitEnum;
  *
  * Per-read rules are checked before the view's own, and resolvers before any rule. The first
  * that decides wins; when none does, the real status is shown unchanged.
+ *
+ * Details (actor, comment, transition, from, relations) travel only on opt-in — see entry().
  */
 final class StatusViewBuilder implements Arrayable, JsonSerializable
 {
@@ -136,7 +138,8 @@ final class StatusViewBuilder implements Arrayable, JsonSerializable
 
     /**
      * Load these relations on the status row for this read, on top of the view's — same rules as
-     * StatusView::with(): only on a status that keeps its details, through loadMissing().
+     * StatusView::with(): only on a status that keeps its details, through loadMissing(), and a
+     * LogicException on get() when neither the view nor any rule opts in to details.
      */
     public function with(string|array ...$relations): self
     {
@@ -160,9 +163,13 @@ final class StatusViewBuilder implements Arrayable, JsonSerializable
     /**
      * The status this audience is shown, or null when the model has no status yet and the view
      * declares no fallback.
+     *
+     * @throws LogicException when relations are asked for but nothing opts in to details.
      */
     public function get(): ?StatusEntry
     {
+        $this->assertRelationsOptedIn();
+
         $status = $this->workflow->currentStatus;
 
         if ($status === null || $status->to === null) {
@@ -205,6 +212,18 @@ final class StatusViewBuilder implements Arrayable, JsonSerializable
         return $this->toArray();
     }
 
+    /**
+     * Render the displayed key as an entry.
+     *
+     * Details — appliedBy, comment, transition, from and the with() relations — are kept only on
+     * opt-in, and the opt-in depends on what is shown:
+     *   - the real status: the view's withDetails() (the built-in `default` view has it);
+     *   - a remapped status (rule, resolver, or phase-only re-keying): the matching rule's
+     *     keepDetails() only. The view's opt-in does not reach it, because a remapped status
+     *     stands in for a step the viewer must not see. A resolver has no rule, so its status
+     *     never keeps details;
+     *   - a hidden status, or a fallback with no status row: never.
+     */
     private function entry(string $key, ?Status $status, ?string $real, ?StatusRule $rule, bool $remapped = true): StatusEntry
     {
         $statesEnum = $this->workflow->statesEnum();
@@ -227,7 +246,8 @@ final class StatusViewBuilder implements Arrayable, JsonSerializable
         }
 
         $redacted = $rule?->hides() ?? false;
-        $keepDetails = $status !== null && (! $remapped || ($rule?->keepsDetails() ?? false));
+        $keepDetails = $status !== null
+            && ($remapped ? ($rule?->keepsDetails() ?? false) : $this->view->keepsDetails());
         $subState = $redacted ? null : $this->subStateFor($key, $real, $phase, $phaseMap);
 
         return new StatusEntry(
@@ -395,6 +415,29 @@ final class StatusViewBuilder implements Arrayable, JsonSerializable
         }
 
         return is_array($comment) ? array_values($comment) : [$comment];
+    }
+
+    /**
+     * Relations travel with the details, so asking for them without any opt-in would load rows no
+     * entry may carry. Refused outright, rather than implying the opt-in and exposing the actor.
+     */
+    private function assertRelationsOptedIn(): void
+    {
+        if ($this->with === [] || $this->view->keepsDetails()) {
+            return;
+        }
+
+        foreach ([...$this->rules, ...$this->view->rules()] as $rule) {
+            if ($rule->keepsDetails()) {
+                return;
+            }
+        }
+
+        throw new LogicException(sprintf(
+            'Status view [%s] loads relations with with() but sends no details; call withDetails() on the view, '
+            .'or keepDetails() on the rule whose status may carry them.',
+            $this->view->name
+        ));
     }
 
     private function lastRule(string $method): StatusRule

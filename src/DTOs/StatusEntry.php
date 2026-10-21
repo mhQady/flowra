@@ -22,11 +22,14 @@ use UnitEnum;
  * not be able to read the real one back. Server code that needs the truth reads
  * $workflow->currentState, as it always has.
  *
- * A remapped or redacted entry carries no comment and no actor unless its rule asked to keep
- * them (StatusRule::keepDetails()); a redacted one never does.
+ * The details — `appliedBy`, `comment`, `transition`, `from` and `relations` — are opt-in. The
+ * real status carries them only when its view asked (StatusView::withDetails(); the built-in
+ * `default` view does). A remapped entry carries them only when its rule asked
+ * (StatusRule::keepDetails()), whatever the view says. A redacted entry never carries them.
+ * Without the opt-in they are null, [], null, null and [].
  *
- * `relations` holds what a view's with() loaded on the status row — likewise only where the
- * details were kept.
+ * `relations` holds what a view's with() loaded on the status row, only where the details were
+ * kept.
  *
  * `transition` and `from` are the status row's own, for server code that decides per move (who may
  * see an actor or a comment). They travel with the details: null wherever comment and actor were
@@ -184,7 +187,8 @@ final class StatusEntry implements Arrayable, JsonSerializable
                 : ['key' => $this->phase, 'label' => (string) $this->phaseLabel()],
             // When the model reached its current status.
             'applied_at' => $this->appliedAt,
-            // Null on a remapped or redacted entry, unless its rule kept the details.
+            // Null unless the details were opted in: withDetails() on the real status, the rule's
+            // keepDetails() on a remapped one. Never on a redacted entry.
             'applied_by' => $this->appliedBy,
             'comment' => $this->comment,
             // True when a rule or resolver changed what is shown.
@@ -194,7 +198,7 @@ final class StatusEntry implements Arrayable, JsonSerializable
         ];
 
         if ($this->relations !== []) {
-            // Only in a read with with(), and only on a status that kept its details.
+            // Only in a read with with(), and only on a status that kept its details (opt-in).
             $entry['relations'] = array_map(
                 static fn (mixed $related) => $related instanceof Arrayable ? $related->toArray() : $related,
                 $this->relations

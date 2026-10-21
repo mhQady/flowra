@@ -187,6 +187,8 @@ return [
         'views' => [
             // 'owner' => [
             //     'labels' => 'workflow.refarz',
+            //     // Send applied_by, comment and with() relations on the real status (off by default).
+            //     'keep_details' => true,
             //     'rules' => [
             //         ['show' => ['under_processing'], 'as' => 'under_processing'],
             //         ['hide' => ['internal_review'], 'as' => 'in_progress',

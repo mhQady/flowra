@@ -439,6 +439,13 @@ $order->registry();
 Order::with('orderWorkflowStatus')->get();
 ```
 
+The read views are reachable the same way, straight off the model:
+
+```php
+$order->orderWorkflowRegistryView('customer')->latest()->get(); // = $order->orderWorkflow->registryView('customer')
+$order->orderWorkflowStatusView('customer');                    // = $order->orderWorkflow->statusView('customer')
+```
+
 ### Scopes and macros
 
 Generic scopes accept the workflow alias or FQCN plus one state or an array of states (enum cases
@@ -1198,11 +1205,12 @@ class OrderWorkflow extends BaseWorkflow
 | `as($key)` | what the rule added last shows: a state, a phase key, or a synthetic key like `in_progress` |
 | `label($key)` | label for the rule added last: a translation key or a literal |
 | `when(...$conditions)` | conditions for the rule added last; all must pass |
-| `keepDetails()` | keeps the comment and actor on the rule added last (see [Redaction](#redaction-in-status-views)) |
+| `keepDetails()` | keeps the comment and actor on the rule added last: the only way a status that rule **remaps** carries details (see [Redaction](#redaction-in-status-views)) |
+| `withDetails()` | sends the **real** status's details: `applied_by`, comment, transition, from-state and `with()` relations. Without it the real status carries none of them. Does not reach a remapped status. In config: `'keep_details' => true`. |
 | `using(...$resolvers)` | resolvers that compute the displayed key outright, before any rule |
 | `labels($prefix)` | translation prefix for the displayed key, e.g. `'workflow.order'` |
 | `fallback($key)` | key shown while the model has no status yet; none by default |
-| `with(...$relations)` | relations on your status model, in Eloquent's `with()` syntax, landing on `$entry->relations`. Loaded **only on a status that keeps its details** (the real status, or a rule with `keepDetails()`), so a remapped or hidden status never carries the hidden step's relations. Uses `loadMissing()`: a list that eager-loads `orderWorkflowStatus.appliedBy` costs no extra query. |
+| `with(...$relations)` | relations on your status model, in Eloquent's `with()` syntax, landing on `$entry->relations`. Loaded **only on a status that keeps its details** (the real status of a view with `withDetails()`, or a status remapped by a rule with `keepDetails()`), so a remapped or hidden status never carries the hidden step's relations. If nothing in the view or read opts in, `get()` throws a `LogicException` instead of quietly exposing the actor. Uses `loadMissing()`: a list that eager-loads `orderWorkflowStatus.appliedBy` costs no extra query. |
 
 **How a phase name matches.** A name that is a phase key claims every state inside the phase,
 including a phase keyed by a real state that is also one of its children. Any other name claims
@@ -1244,7 +1252,7 @@ there must be class-strings, because `config:cache` cannot serialize closures:
 ],
 ```
 
-Views resolve exactly like registry views: the built-in `default` (no rules), then config, then
+Views resolve exactly like registry views: the built-in `default` (no rules, with `withDetails()`), then config, then
 the workflow's `statusViews()`, where the later source wins on a name clash. An unknown name throws
 `Flowra\Exceptions\StatusViewNotFoundException`.
 
@@ -1292,8 +1300,14 @@ $entry->recordedState;  // the real state for server code; null once redacted
 
 - `recordedState` is **never serialized**. A client of a remapped status cannot read the real one
   back. Server code that needs the truth reads `currentState`.
-- A remapped status carries **no comment and no actor** by default, because a comment written at an
-  internal step tends to describe that step. `keepDetails()` opts a rule back in.
+- Details are **opt-in**. A view sends no `applied_by`, comment, transition, from-state or relations
+  unless it asks. Only the built-in `default` view asks out of the box, so code that reads the raw
+  status sees no change.
+  - The **real** status carries them only on a view with `withDetails()` (`'keep_details' => true`
+    in config).
+  - A **remapped** status carries them only when its own rule says `keepDetails()`, because a
+    comment written at an internal step tends to describe that step. The view's `withDetails()`
+    does not reach it, and a status picked by a resolver never carries them.
 - A hidden status also drops `recordedState` from the DTO, so a logged or dumped entry does not leak
   it either. `keepDetails()` cannot lift that.
 

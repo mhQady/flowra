@@ -78,6 +78,7 @@ class StatusWorkflow extends BaseWorkflow
             StatusView::make('sub_states_everywhere')->phaseOnly()->withSubState(),
 
             StatusView::make('with_actor')
+                ->withDetails()
                 ->with('actor')
                 ->show(StatusWorkflowStates::SUBMITTED)->as('received')->keepDetails()
                 ->show(StatusWorkflowStates::DRAFT)->as('not_started')

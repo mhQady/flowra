@@ -28,6 +28,10 @@ use UnitEnum;
  *   StatusView::make('owner')
  *       ->show(S::UNDER_PROCESSING)->as('under_processing')
  *       ->hide(S::INTERNAL_REVIEW)->as('in_progress')->when(IsApplicant::class);
+ *
+ * Details — the actor, comment, transition, from-state and with() relations — are opt-in. A view
+ * sends none of them unless it asks: withDetails() for the real status, a rule's keepDetails()
+ * for a status that rule remaps. Only the built-in `default` view opts in out of the box.
  */
 final class StatusView
 {
@@ -48,6 +52,9 @@ final class StatusView
     /** Relations loaded on the status row, in Eloquent's with() syntax. @var array<int|string, string|Closure> */
     private array $with = [];
 
+    /** Whether the real status carries its details; see withDetails(). */
+    private bool $keepDetails = false;
+
     private function __construct(public readonly string $name)
     {
     }
@@ -63,7 +70,10 @@ final class StatusView
      *    'resolvers' => [Resolver::class], 'rules' => [['show' => [...], 'as' => '...'], ...],
      *    'phase_display' => 'phase' | ['*' => 'with_phase', 'under_review' => 'phase'],
      *    'sub_state' => true | ['prepare_application_info'],
-     *    'with' => ['appliedBy.roles']]
+     *    'keep_details' => true, 'with' => ['appliedBy.roles']]
+     *
+     * The top-level 'keep_details' is withDetails(); a 'keep_details' inside a rule is that rule's
+     * keepDetails().
      *
      * Config-declared conditions and resolvers must be class-strings — `php artisan
      * config:cache` refuses to serialize closures. Use statusViews() on the workflow for those.
@@ -107,6 +117,10 @@ final class StatusView
 
         $view->phaseDisplayFromConfig($definition['phase_display'] ?? null);
         $view->subStatesFromConfig($definition['sub_state'] ?? null);
+
+        if (! empty($definition['keep_details'] ?? false)) {
+            $view->withDetails();
+        }
 
         if (($with = $definition['with'] ?? null) !== null) {
             $view->with((array) $with);
@@ -166,12 +180,36 @@ final class StatusView
         return $this;
     }
 
-    /** Keep the comment and actor on the rule added last. */
+    /**
+     * Keep the comment and actor on the rule added last — the only way a status that rule remaps
+     * carries details; withDetails() never reaches it.
+     */
     public function keepDetails(): self
     {
         $this->lastRule('keepDetails')->keepDetails();
 
         return $this;
+    }
+
+    /**
+     * Send the details of the real status: appliedBy, comment, transition, from and the with()
+     * relations. Without it the real status carries none of them.
+     *
+     * Covers the real status only. A remapped status stands in for a step the viewer must not
+     * see, so it still needs its own rule's keepDetails(); a hidden one never carries details.
+     * Named apart from keepDetails(), which applies to the rule added last.
+     */
+    public function withDetails(bool $keep = true): self
+    {
+        $this->keepDetails = $keep;
+
+        return $this;
+    }
+
+    /** Whether the real status carries its details. */
+    public function keepsDetails(): bool
+    {
+        return $this->keepDetails;
     }
 
     /**
@@ -231,9 +269,14 @@ final class StatusView
      * (config('flowra.models.status')), in Eloquent's own with() syntax: names, dotted nesting, or
      * [name => constraint]. They land on StatusEntry::$relations.
      *
-     * Relations travel with the details: they are loaded only on a status that keeps its comment
-     * and actor (the real status, or a rule with keepDetails()). A remapped or hidden status stands
-     * in for a step the viewer must not see, so it carries none of that step's relations.
+     * Relations travel with the details: they are loaded only on a status that keeps them — the
+     * real status of a view with withDetails(), or a status remapped by a rule with keepDetails().
+     * A remapped or hidden status stands in for a step the viewer must not see, so it carries none
+     * of that step's relations.
+     *
+     * Declaring relations without any opt-in throws a LogicException on read: neither
+     * withDetails() nor any rule's keepDetails(). Loading a relation never implies the opt-in, so
+     * a relation like appliedBy cannot quietly expose the actor.
      *
      * Loaded with loadMissing(), so a list that eager-loaded `{alias}Status.relation` costs nothing.
      * Called more than once, the relations add up.

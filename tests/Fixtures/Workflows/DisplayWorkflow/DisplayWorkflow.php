@@ -24,7 +24,7 @@ class DisplayWorkflow extends BaseWorkflow
     public static function statusViews(): array
     {
         return [
-            StatusView::make('surveyor')->labels('tests.display')->phaseOnly(),
+            StatusView::make('surveyor')->labels('tests.display')->phaseOnly()->withDetails(),
 
             StatusView::make('mixed')
                 ->phaseOnly()

@@ -14,4 +14,9 @@ class Status extends FlowraStatus
     {
         return $this->belongsTo(User::class, 'applied_by');
     }
+
+    public function appliedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'applied_by');
+    }
 }
