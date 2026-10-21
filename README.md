@@ -439,12 +439,18 @@ $order->registry();
 Order::with('orderWorkflowStatus')->get();
 ```
 
-The read views are reachable the same way, straight off the model:
+The read views are registered beside them, the same way. Eloquent passes a registered resolver
+only the model, so each starts from the default view and `view()` switches to a named one:
 
 ```php
-$order->orderWorkflowRegistryView('customer')->latest()->get(); // = $order->orderWorkflow->registryView('customer')
-$order->orderWorkflowStatusView('customer');                    // = $order->orderWorkflow->statusView('customer')
+$order->orderWorkflowRegistryView()->latest()->get();                    // = $order->orderWorkflow->registryView()
+$order->orderWorkflowRegistryView()->view('customer')->latest()->get();  // = …->registryView('customer')
+$order->orderWorkflowStatusView()->for($user)->view('customer')->get();  // = …->statusView('customer')->for($user)
 ```
+
+Call `view()` before any other per-read option. The viewer given to `for()` carries over; any other
+option set before it would belong to the view being left, so it throws instead of being dropped.
+These are reads, not relations: call them as methods, never through `with()` or as a property.
 
 ### Scopes and macros
 

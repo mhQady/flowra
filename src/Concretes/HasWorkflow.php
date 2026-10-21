@@ -3,12 +3,11 @@
 namespace Flowra\Concretes;
 
 use Flowra\Traits\HasWorkflowRelations;
-use Flowra\Traits\HasWorkflowViewShortcuts;
 use Flowra\Traits\WorkflowAware;
 
 trait HasWorkflow
 {
-    use WorkflowAware, HasWorkflowRelations, HasWorkflowViewShortcuts;
+    use WorkflowAware, HasWorkflowRelations;
 
     public static function appliedWorkflows(): array
     {

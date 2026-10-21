@@ -51,6 +51,9 @@ final class StatusViewBuilder implements Arrayable, JsonSerializable
     /** Relations loaded on the status row; seeded from the view. @var array<int|string, string|Closure> */
     private array $with;
 
+    /** The per-read options as the view seeded them; see view(). @var array<string, mixed> */
+    private array $seeded = [];
+
     public function __construct(
         private readonly BaseWorkflow $workflow,
         private readonly StatusView $view,
@@ -58,6 +61,36 @@ final class StatusViewBuilder implements Arrayable, JsonSerializable
         $this->labelPrefix = $view->labelPrefix();
         $this->fallback = $view->fallbackKey();
         $this->with = $view->eagerLoads();
+        $this->seeded = $this->readState();
+    }
+
+    /**
+     * Read through another named view instead — the switch for a read that starts from the
+     * default view, such as `$order->orderWorkflowStatusView()->view('customer')`.
+     *
+     * Returns a fresh read seeded from that view; the viewer given to for() carries over. Call it
+     * before any other per-read option: those would belong to the view being left, so changing one
+     * first throws rather than being silently dropped.
+     *
+     * @throws \Flowra\Exceptions\StatusViewNotFoundException on an unknown view name.
+     */
+    public function view(string $name): self
+    {
+        if ($this->readState() != $this->seeded) {
+            throw new LogicException('Call view() before any other per-read option of the status view; for() is the only one it carries over.');
+        }
+
+        return $this->workflow->statusView($name)->for($this->viewer);
+    }
+
+    /**
+     * The per-read options, to tell whether any changed since the view seeded them.
+     *
+     * @return array<string, mixed>
+     */
+    private function readState(): array
+    {
+        return array_diff_key(get_object_vars($this), array_flip(['viewer', 'seeded', 'workflow', 'view']));
     }
 
     /**
